@@ -6,6 +6,25 @@ so they summarise each line rather than list every change.
 Note: "dataset F" in the 3.4.2 to 4.0.1 entries is the *first* F (Faidhi ladders, since retired);
 the current F of the scsc repository is a different dataset, see `docs/pruning_fidelity.md`.
 
+## [Unreleased]
+
+* Lexical stage: a string literal is now one token however Pygments splits it (quotes, pieces,
+  escapes, f-string fields, raw-string delimiters), so the token count no longer depends on the text
+  of the strings. Checked on the pairs of the 0.2.0 analysis: pairs flagged above the group threshold
+  that the prefilter would discard, margin 0.05, thresholds 0.7 and 0.8: unchanged or fewer in every
+  language (the one pair that `python_3_13` lost at 0.05 is kept; cpp_14 still loses 1 of 58 at 0.8,
+  none at margin 0.10); clones keep their lexical index and unrelated pairs rise by about 0.01.
+* `group` / `report` also read `.cc`, `.cxx`, `.hpp`, `.hh`, `.hxx` (cpp_14), `.h` (c) and `.kts`
+  (kotlin).
+* Canonical operator forms, measured on real files: 60 files per language rewritten with swapped
+  comparisons and `+` / `*` operands (70% of the matches). Identical trees (off -> on): java_20
+  23 -> 58 of 60, java_24 22 -> 46, cpp_14 7 -> 56, c 4 -> 37, kotlin 0 -> 14 of 20 (python_3, which
+  already had them, 12 -> 51); mean similarity +0.01..+0.02; no pair below 0.9 gets worse.
+* Kotlin pruning changes (`IF`, `ELSE`, `FUN`), problem-disjoint check: undoing them on the even and
+  the odd half of the 12 problems costs +0.0026..+0.0086 MAE and raises the cross-problem similarity
+  on all four samples.
+* `fidelity_sweep.py`: `--problem-subset {even,odd}` and `--only` with explicit operations.
+
 ## [0.2.0] - csimx
 
 The structural stage is no longer identical to csim 4.1.0: weighted hashes, canonical operator forms

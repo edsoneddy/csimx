@@ -139,6 +139,8 @@ def load_sample(args, lang, U, snap, raw_tokens, raw_rules):
     ext = LANG_MODULES[lang]["extension"]
     rnd = random.Random(args.seed)
     probs = sorted(p for p in Path(args.corpus).iterdir() if p.is_dir())
+    if args.problem_subset != "all":
+        probs = probs[0::2] if args.problem_subset == "even" else probs[1::2]
     rnd.shuffle(probs)
     raw_config(U, snap, raw_tokens, raw_rules)
     groups = []
@@ -360,14 +362,17 @@ def parse_args():
     ap.add_argument("--problems", type=int, default=8)
     ap.add_argument("--files", type=int, default=8)
     ap.add_argument("--cross", type=int, default=80)
+    ap.add_argument("--problem-subset", choices=("all", "even", "odd"), default="all",
+                    help="use only every other problem (sorted by name): run `run` on one half and "
+                         "`validate` on the other for a problem-disjoint check on small corpora")
     ap.add_argument("--min-nodes", type=int, default=5)
     ap.add_argument("--max-nodes", type=int, default=200)
     ap.add_argument("--min-files", type=int, default=3, help="a construct must occur in this many files")
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) - 2))
     ap.add_argument("--max-candidates", type=int, default=None, help="measure at most this many (smoke tests)")
     ap.add_argument("--out", help="write the report here (report mode)")
-    ap.add_argument("--only", help="validate mode: comma-separated keys (action:strategy:id) to apply "
-                                   "instead of every recommended change")
+    ap.add_argument("--only", help="validate mode: comma-separated operations action:strategy:id to apply "
+                                   "instead of every recommended change (they need not be in the state file)")
     return ap.parse_args()
 
 
@@ -451,11 +456,15 @@ def main():
         if not state:
             sys.exit("no state file to validate")
         ops = []
-        wanted = set(args.only.split(",")) if args.only else None
-        for key, rec in state["results"].items():
-            if (key in wanted) if wanted else rec["verdict"] == "recommend":
+        if args.only:  # explicit operations, e.g. "add:token:75,remove:exclude:12"
+            for key in args.only.split(","):
                 action, strategy, ident = key.split(":")
                 ops.append((action, strategy, int(ident)))
+        else:
+            for key, rec in state["results"].items():
+                if rec["verdict"] == "recommend":
+                    action, strategy, ident = key.split(":")
+                    ops.append((action, strategy, int(ident)))
         if not ops:
             print("nothing recommended in the state file")
             return

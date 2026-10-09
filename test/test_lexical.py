@@ -96,3 +96,28 @@ def test_unreadable_file_is_skipped(tmp_path, capsys):
     names, contents = process_files(str(tmp_path), "python_3")
     assert [os.path.basename(n) for n in names] == ["ok.py"]
     assert contents == ["x = 1\n"]
+
+
+@pytest.mark.parametrize(
+    "lang,a,b",
+    [
+        ("python_3", "x = 'a'", 'x = "a long text with several words"'),
+        ("python_3", "x = r'\\d+'", 'x = "plain"'),
+        ("cpp_14", 'auto s = R"(raw text)";', 'auto s = "u8";'),
+        ("c", 'char *s = "a";', 'char *s = "a b\\n c";'),
+        ("java_20", 'String s = "a";', 'String s = """\n  text block\n  """;'),
+        ("kotlin", 'val s = "a"', 'val s = "a b c"'),
+    ],
+)
+def test_a_string_literal_is_one_token_whatever_its_content(lang, a, b):
+    assert Tokenize(a, lang) == Tokenize(b, lang)
+
+
+def test_extra_extensions_are_read(tmp_path):
+    for name in ("a.cpp", "b.cc", "c.hpp", "d.txt"):
+        (tmp_path / name).write_text("int f() { return 1; }\n")
+    names, _ = process_files(str(tmp_path), "cpp_14")
+    assert sorted(os.path.basename(n) for n in names) == ["a.cpp", "b.cc", "c.hpp"]
+    (tmp_path / "e.kts").write_text("val x = 1\n")
+    names, _ = process_files(str(tmp_path), "kotlin")
+    assert [os.path.basename(n) for n in names] == ["e.kts"]

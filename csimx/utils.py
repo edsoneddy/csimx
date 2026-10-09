@@ -215,6 +215,19 @@ def get_extension_by_lang(lang):
         raise ValueError(f"Unsupported language: {lang}")
 
 
+# Extra extensions accepted by `process_files` besides the one of get_extension_by_lang.
+EXTRA_EXTENSIONS = {
+    "cpp_14": (".cc", ".cxx", ".hpp", ".hh", ".hxx"),
+    "c": (".h",),
+    "kotlin": (".kts",),
+}
+
+
+def get_extensions_by_lang(lang):
+    """Every file extension `process_files` reads for `lang` (the main one first)."""
+    return (get_extension_by_lang(lang), *EXTRA_EXTENSIONS.get(lang, ()))
+
+
 def process_files(path, lang):
     file_names = []
     file_contents = []
@@ -225,7 +238,7 @@ def process_files(path, lang):
 
         for file in os.listdir(path):
             file_path = os.path.join(path, file)
-            if os.path.isfile(file_path) and file.endswith(get_extension_by_lang(lang)):
+            if os.path.isfile(file_path) and file.endswith(get_extensions_by_lang(lang)):
                 file_name, content = read_file(file_path)
                 if content is None:  # read_file already said why; skip it instead of failing later
                     continue
