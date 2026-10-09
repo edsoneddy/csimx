@@ -6,6 +6,21 @@ so they summarise each line rather than list every change.
 Note: "dataset F" in the 3.4.2 to 4.0.1 entries is the *first* F (Faidhi ladders, since retired);
 the current F of the scsc repository is a different dataset, see `docs/pruning_fidelity.md`.
 
+## [Unreleased]
+
+* `estimate_group(file_names, file_contents, lang, ...)` and `calibrate()` (`csimx/estimate.py`): time
+  estimate of `group` from the real size of the pruned trees. Per-pair cost
+  `a[lang] * (nodes_i * nodes_j) ** 1.2` seconds, shared exponent and one coefficient per language
+  (fitted on 990 pairs per language; Apple M4 Pro, one core). Checked on 100 real files per language
+  (same-problem pairs): estimate vs. measured -3%..+5% in six languages and +15% in `java_20`
+  with the fitted coefficient; end to end with `calibrate()` and the prefilter lexical time counted,
+  -1%..+13% in the five languages re-measured (python_3, java_24, cpp_14, c, kotlin). Returns a range
+  (0.7x to 1.5x). `calibrate()` times a fixed workload for the speed of the machine it runs on.
+* `group_by_exhaustive_search(..., progress=callable(phase, done, total))`: progress report (phases
+  `parse`, `lexical`, `structural`); with a prefilter the lexical pass now finishes before the
+  structural one starts, so the number of structural pairs is known up front. Results unchanged.
+  There is deliberately no cancel hook: stop a long run by terminating the process that runs it.
+
 ## [0.2.1] - csimx
 
 Patch release: the structural stage is unchanged, so **no structural score changes** from 0.2.0. Only

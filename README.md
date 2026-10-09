@@ -359,6 +359,30 @@ results = group_by_exhaustive_search(
 print(results)
 ```
 
+#### Estimating the time of `group`, and following its progress
+
+`group` compares every pair, so its time grows with the square of the number of files and with the
+square of the size of the pruned trees. `estimate_group` tells you before running it, from the real
+size of the trees (cost per pair ~ `a[lang] * (nodes_i * nodes_j) ** 1.2`, fitted on the seven
+languages):
+
+```python
+from csimx import calibrate, estimate_group
+
+speed = calibrate()   # speed of this machine against the reference one (about 0.3 s, cached)
+est = estimate_group(file_names, file_contents, "java_24", threshold=0.7,
+                     prefilter_margin=0.05, speed_factor=speed)
+print(est["estimated_seconds"], est["range_seconds"], est["structural_pairs"], est["pairs"])
+```
+
+With a prefilter margin, `exact_prefilter=False` skips the lexical pass (which is not free for long
+files) and returns the upper bound. On 100 files per language the estimate was within -1% to +13% of
+the measured time (range: 0.7x to 1.5x of the point value); other machines and loaded CPUs will be
+worse, so refine it with the real progress while it runs. `group_by_exhaustive_search` takes
+`progress=callable(phase, done, total)` (phases `parse`, `lexical`, `structural`; it only reports and
+never changes the result). csimx has no cancellation of its own: to stop a long `group`, run it in a
+separate process and terminate it.
+
 Or use the legacy Compare class for simple pairwise comparisons:
 
 ```python

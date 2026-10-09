@@ -714,6 +714,7 @@ def group_by_exhaustive_search(
     index_formula=DEFAULT_INDEX_FORMULA,
     prefilter_margin=None,
     stats=None,
+    progress=None,
 ):
     """Group files whose similarity index is above `threshold`.
 
@@ -724,10 +725,21 @@ def group_by_exhaustive_search(
     whose tokens differ more than their structure does (a moved block, reordered statements);
     it is at most MAX_PREFILTER_MARGIN. `stats`, if given, is filled with the number of pairs,
     the pairs skipped by the filter and the files parsed.
+
+    `progress(phase, done, total)`, if given, is called as the work advances: phase "parse" (every
+    file is parsed first when there is no prefilter), "lexical" (the token comparison of every
+    pair, prefilter only) and "structural" (the pairs that are compared structurally; with the
+    prefilter their total is known once "lexical" is over). The callback only reports: it does
+    not change the result. To stop a running `group`, run it in its own process and terminate that
+    process; csimx has no cancellation of its own.
     """
 
     file_number = len(file_names)
     grouper = UnionFind(file_number)
+
+    def report(phase, done, total):
+        if progress is not None:
+            progress(phase, done, total)
 
     prefilter = prefilter_margin is not None
     if prefilter:
@@ -736,13 +748,16 @@ def group_by_exhaustive_search(
         from .lexical import LexicalAtLeast, Tokenize
 
         lexical_minimum = max(0.0, threshold - prefilter_margin)
-        tokens = [Tokenize(content, lang) for content in file_contents]
+        tokens = []
+        for content in file_contents:
+            tokens.append(Tokenize(content, lang))
         proccesed_files = [None] * file_number  # parsed on demand
     else:
-        proccesed_files = [
-            preprocess_code(file_names[idx], file_contents[idx], lang)
-            for idx in range(file_number)
-        ]
+        proccesed_files = []
+        for idx in range(file_number):
+            report("parse", idx, file_number)
+            proccesed_files.append(preprocess_code(file_names[idx], file_contents[idx], lang))
+        report("parse", file_number, file_number)
 
     def structural(idx):
         if proccesed_files[idx] is None:
@@ -752,17 +767,32 @@ def group_by_exhaustive_search(
     similarity_indices = [0.00] * file_number
     skipped = 0
 
-    for i in range(file_number - 1):
-        for j in range(i + 1, file_number):
-            if prefilter and LexicalAtLeast(tokens[i], tokens[j], lexical_minimum) is None:
-                skipped += 1
-                continue
-            similarity_index = get_similarity_coefficient(
-                structural(i), structural(j), ted_algorithm, index_formula
-            )
-            if similarity_index > threshold:
-                grouper.union(i, j)
-                similarity_indices[j] = similarity_index
+    # the pairs to compare structurally, in the usual order
+    if prefilter:
+        total_pairs = file_number * (file_number - 1) // 2
+        pending, seen = [], 0
+        for i in range(file_number - 1):
+            for j in range(i + 1, file_number):
+                if LexicalAtLeast(tokens[i], tokens[j], lexical_minimum) is None:
+                    skipped += 1
+                else:
+                    pending.append((i, j))
+                seen += 1
+                if seen % 64 == 0:
+                    report("lexical", seen, total_pairs)
+        report("lexical", total_pairs, total_pairs)
+    else:
+        pending = [(i, j) for i in range(file_number - 1) for j in range(i + 1, file_number)]
+
+    report("structural", 0, len(pending))
+    for done, (i, j) in enumerate(pending, 1):
+        similarity_index = get_similarity_coefficient(
+            structural(i), structural(j), ted_algorithm, index_formula
+        )
+        if similarity_index > threshold:
+            grouper.union(i, j)
+            similarity_indices[j] = similarity_index
+        report("structural", done, len(pending))
 
     if stats is not None:
         stats.update(
