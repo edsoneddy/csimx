@@ -1,0 +1,283 @@
+import argparse
+import os
+import sys
+from .language.parser import ANTLR_parse
+from .processing.tree_processing import Normalize, PruneAndHash
+from .processing.distance_metrics import DEFAULT_INDEX_FORMULA, INDEX_FORMULAS
+from .utils import (
+    MAX_PREFILTER_MARGIN,
+    PREFILTER_MARGIN,
+    count_tree_nodes,
+    group_by_exhaustive_search,
+    print_antlr_tree,
+    print_tree,
+    process_files,
+    report_pairwise_similarity,
+)
+
+
+def print_backend_info():
+    """Report which parser backend each language will use.
+
+    When a compiled parser is missing or fails to load, csimx silently falls back
+    to the Python parser: results stay correct, but parsing runs several times
+    slower. This makes that state visible instead of leaving it to be inferred
+    from timings.
+    """
+    from .native.loader import (
+        _LIB_DIR,
+        _NATIVE_CONFIG,
+        _disabled,
+        _library_suffix,
+        is_available,
+    )
+
+    print("csimx parser backends")
+    print()
+
+    turned_off = _disabled()
+
+    for lang in ("python_3_13", "python_3", "java_20", "java_24", "cpp_14", "kotlin", "c"):
+        if lang not in _NATIVE_CONFIG:
+            print(f"  {lang:<14} python   (no native parser for this grammar)")
+            continue
+
+        expected = _LIB_DIR / (_NATIVE_CONFIG[lang][0] + _library_suffix())
+
+        if turned_off:
+            state = "available but disabled" if expected.is_file() else "not built"
+        elif is_available(lang):
+            print(f"  {lang:<14} native   (C++, several times faster)")
+            continue
+        else:
+            state = "not built" if not expected.is_file() else "present but failed to load"
+
+        print(f"  {lang:<14} python   (native {state})")
+
+    if turned_off:
+        print()
+        print("  note: CSIM_DISABLE_NATIVE is set, so native parsers are turned off.")
+
+    print()
+    print(f"  library directory: {_LIB_DIR}")
+    print("  build native parsers with: scripts/build_native_parsers.sh")
+
+
+def main():
+    """
+    Main function to parse command-line arguments and execute the similarity checker.
+
+    Actions:
+        report: Generate a pairwise similarity report for all files.
+        group: Group files by similarity using a specified strategy.
+        tree (alias: view): Print the normalized/pruned tree for a single file,
+            i.e. the exact tree that gets passed to the tree edit distance algorithm.
+        info: Report which parser backend (native C++ or pure Python) is active
+            for each language. Takes no arguments.
+
+    Arguments for 'report' action:
+        --path, -p (str): Path to a directory containing source code files (required).
+        --lang, -l (str): The programming language of the source files (default: 'python_3_13').
+        --talg, -ta (str): The tree edit distance algorithm to use (default: 'apted').
+        --index, -ix (str): Similarity index formula: 'legacy' (default), 'ratio' or 'metric'.
+
+    Arguments for 'group' action:
+        --path, -p (str): Path to a directory containing source code files (required).
+        --threshold, -t (float): Similarity threshold between 0.0 and 1.0 (required).
+        --strategy, -s (str): Grouping strategy: 'exhaustive' (default).
+        --lang, -l (str): The programming language of the source files (default: 'python_3_13').
+        --talg, -ta (str): The tree edit distance algorithm to use (default: 'apted').
+        --index, -ix (str): Similarity index formula: 'legacy' (default), 'ratio' or 'metric'.
+            Thresholds are scale-dependent: legacy 0.70 == ratio 0.769.
+
+    Arguments for 'tree'/'view' action:
+        --path, -p (str): Path to a single source code file (required).
+        --lang, -l (str): The programming language of the source file (default: 'python_3_13').
+        --show-raw: Also print the raw ANTLR parse tree before normalization/pruning.
+
+    Returns:
+        None
+    """
+    parser = argparse.ArgumentParser(
+        description="A command-line tool to detect code similarity and plagiarism."
+    )
+
+    # Action argument (positional)
+    parser.add_argument(
+        "action",
+        choices=["report", "group", "tree", "view", "info"],
+        help="Action to perform: 'report' for pairwise similarity report, 'group' for grouping "
+        "files by similarity, 'tree'/'view' to print a single file's normalized/pruned tree, "
+        "'info' to show which parser backend is active.",
+    )
+
+    # Required for every action except 'info', which inspects the install itself.
+    parser.add_argument(
+        "--path",
+        "-p",
+        type=str,
+        help="Path to a directory containing source code files.",
+    )
+
+    # Language of the source files
+    parser.add_argument(
+        "--lang",
+        "-l",
+        choices=["python_3_13", "python_3", "java_20", "java_24", "cpp_14", "kotlin", "c"],
+        default="python_3_13",
+        help="The programming language of the source files (default: python_3_13).",
+    )
+
+    # Algorithm for tree edit distance
+    parser.add_argument(
+        "--talg",
+        "-ta",
+        choices=["zss", "apted"],
+        default="apted",
+        help="The tree edit distance algorithm to use (default: apted).",
+    )
+
+    # How the edit distance is normalized into the similarity index
+    parser.add_argument(
+        "--index",
+        "-ix",
+        choices=list(INDEX_FORMULAS),
+        default=DEFAULT_INDEX_FORMULA,
+        help="Similarity index formula (default: %(default)s). 'ratio' = "
+        "max/(max+d); 'metric' = (n1+n2-d)/(n1+n2+d); 'legacy' = 1-d/max, the "
+        "index of csim <= 3.4.2 and the default. 'ratio' ranks pairs exactly as 'legacy' does "
+        "but on a different scale, so thresholds do not carry over: "
+        "legacy 0.70 = ratio 0.769, legacy 0.80 = ratio 0.833.",
+    )
+
+    # Threshold (only for 'group' action)
+    parser.add_argument(
+        "--threshold",
+        "-t",
+        type=float,
+        default=None,
+        help="Similarity threshold (0.0 to 1.0) for grouping files. Required for 'group' action.",
+    )
+
+    # Strategy (only for 'group' action)
+    parser.add_argument(
+        "--strategy",
+        "-s",
+        choices=["exhaustive"],
+        default="exhaustive",
+        help="Grouping strategy: 'exhaustive' (all-pairs comparison). Default: exhaustive.",
+    )
+
+    # Raw tree flag (only for 'tree'/'view' action)
+    parser.add_argument(
+        "--show-raw",
+        action="store_true",
+        help="For the 'tree'/'view' action, also print the raw ANTLR parse tree "
+        "before normalization/pruning.",
+    )
+
+    parser.add_argument(
+        "--prefilter",
+        action="store_true",
+        help="For the 'group' action: compare the tokens of each pair first and only run the "
+        "structural comparison on the pairs whose lexical index reaches --threshold minus the "
+        f"margin ({PREFILTER_MARGIN}, or --prefilter-margin). Without --prefilter or "
+        "--prefilter-margin every pair is compared structurally. It pays off from a threshold "
+        "of about 0.6 up; below that it skips few pairs.",
+    )
+    parser.add_argument(
+        "--prefilter-margin",
+        type=float,
+        default=None,
+        help="Turns the prefilter on with this margin: how far under --threshold the lexical "
+        f"index may be and still go on to the structural comparison (0.0 to {MAX_PREFILTER_MARGIN}). "
+        "A larger margin loses fewer pairs and skips fewer.",
+    )
+
+    args = parser.parse_args()
+
+    if args.action == "info":
+        print_backend_info()
+        return
+
+    if not args.path:
+        parser.error("The --path argument is required for this action.")
+
+    if args.action in ("tree", "view"):
+        if not os.path.isfile(args.path):
+            parser.error(f"The path '{args.path}' is not a valid file.")
+
+        with open(args.path, "r", encoding="utf-8") as file:
+            file_content = file.read()
+
+        raw_tree = ANTLR_parse(args.path, file_content, args.lang)
+
+        if args.show_raw:
+            print("=== Raw ANTLR Parse Tree ===")
+            print_antlr_tree(raw_tree, args.lang)
+            print()
+
+        normalized_tree = Normalize(raw_tree, args.lang)
+        pruned_tree, _ = PruneAndHash(normalized_tree, args.lang)
+        node_count = count_tree_nodes(pruned_tree)
+
+        print("=== Normalized + Pruned Tree (input to Tree Edit Distance) ===")
+        print_tree(pruned_tree, lang=args.lang)
+        print(f"\nTotal nodes after pruning: {node_count}")
+        return
+
+    # Validate arguments based on action
+    if args.action == "group":
+        if args.threshold is None:
+            parser.error("The --threshold argument is required for 'group' action.")
+        if not (0.0 <= args.threshold <= 1.0):
+            parser.error("The --threshold must be a float between 0.0 and 1.0.")
+        if args.prefilter_margin is not None and not (0.0 <= args.prefilter_margin <= MAX_PREFILTER_MARGIN):
+            parser.error(f"The --prefilter-margin must be a float between 0.0 and {MAX_PREFILTER_MARGIN}.")
+    elif args.action == "report":
+        if args.prefilter or args.prefilter_margin is not None:
+            parser.error("The --prefilter and --prefilter-margin arguments are only valid for 'group' action.")
+        if args.threshold is not None:
+            parser.error("The --threshold argument is only valid for 'group' action.")
+        if args.strategy != "exhaustive":
+            parser.error("The --strategy argument is only valid for 'group' action and must be 'exhaustive'.")
+
+    try:
+        file_names, file_contents = process_files(args.path, args.lang)
+    except (FileNotFoundError, NotADirectoryError, ValueError) as exc:
+        parser.error(str(exc))
+
+    if len(file_names) < 2:
+        parser.error("At least two files are required for comparison.")
+
+    if args.action == "report":
+        results = report_pairwise_similarity(
+            file_names, file_contents, args.lang, args.talg, args.index
+        )
+    elif args.action == "group":
+        stats = {}
+        margin = args.prefilter_margin
+        if margin is None and args.prefilter:
+            margin = PREFILTER_MARGIN
+        results = group_by_exhaustive_search(
+            file_names,
+            file_contents,
+            args.lang,
+            args.threshold,
+            args.talg,
+            index_formula=args.index,
+            prefilter_margin=margin,
+            stats=stats,
+        )
+        if margin is not None:
+            print(
+                f"prefilter (margin {margin}): {stats['skipped']} of {stats['pairs']} pairs skipped, "
+                f"{stats['parsed']} of {stats['files']} files parsed",
+                file=sys.stderr,
+            )
+
+    print(results)
+
+
+if __name__ == "__main__":
+    main()
