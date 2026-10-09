@@ -6,7 +6,10 @@ so they summarise each line rather than list every change.
 Note: "dataset F" in the 3.4.2 to 4.0.1 entries is the *first* F (Faidhi ladders, since retired);
 the current F of the scsc repository is a different dataset, see `docs/pruning_fidelity.md`.
 
-## [Unreleased]
+## [0.3.0] - csimx
+
+New API for services that run `group` for others: a time estimate and a progress callback. The structural
+scores and `group` results are unchanged from 0.2.1.
 
 * `estimate_group(file_names, file_contents, lang, ...)` and `calibrate()` (`csimx/estimate.py`): time
   estimate of `group` from the real size of the pruned trees. Per-pair cost
