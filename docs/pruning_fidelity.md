@@ -270,7 +270,7 @@ error of the similarity index of the pruned tree vs. the near-raw reference, `py
 bias +0.010 / -0.007 / -0.017). The canonical forms do not move the fidelity of the pruning.
 
 
-## Weighted hashes in the other languages (csimx 0.1.0)
+## Weighted hashes in the other languages (csimx 0.2.0)
 
 Same protocol as above (near-raw reference, three sets of 12 problems, seeds 7/11/23, files of 5-260
 nodes), sweeping `HASH_MASS_ALPHA`. MAE by seed (7 / 11 / 23):
@@ -288,7 +288,7 @@ leaves a negative bias, so weighting gains little there. Kotlin has no real corp
 coincide (12 problems). Controlled clones and 150 random cross-problem pairs per language are in the
 CHANGELOG.
 
-## Fidelity sweep of the pruning sets (csimx 0.1.0)
+## Fidelity sweep of the pruning sets (csimx 0.2.0)
 
 `fidelity_sweep.py` (skill `csimx-batch-tuner`) turns the protocol above into a loop: for every
 token/rule present in at least 3 sampled files it measures adding it to `EXCLUDED_TOKEN_TYPES`,

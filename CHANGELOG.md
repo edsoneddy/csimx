@@ -6,11 +6,12 @@ so they summarise each line rather than list every change.
 Note: "dataset F" in the 3.4.2 to 4.0.1 entries is the *first* F (Faidhi ladders, since retired);
 the current F of the scsc repository is a different dataset, see `docs/pruning_fidelity.md`.
 
-## [0.1.0] - csimx
+## [0.2.0] - csimx
 
-csimx is a fork of csim 4.1.0 (the structural stage, trees and index, is unchanged and gives the
-same scores) with a second, lexical stage. Everything below this entry is the history of csim,
-written when the project was still called csim.
+The structural stage is no longer identical to csim 4.1.0: weighted hashes, canonical operator forms
+and a few config changes reach the other languages (see below), so **scores change** for `java_20`,
+`java_24`, `cpp_14`, `c` and `kotlin` (`python_3`, `python_3_13` keep the scores of 0.1.0). The
+lexical stage was checked on all seven languages, and the tuning skills moved into the repo.
 
 ### Pruning sweep of all seven languages (fidelity-scored), three small config changes
 
@@ -94,6 +95,12 @@ near-raw tree (3 sets of 12 problems, seeds 7 / 11 / 23, 23 not used to choose):
 `java_24` is left unweighted: alpha 0.25-0.6 moves the MAE by -0.007..+0.010 and adds a bias of -0.03 to
 -0.07. Kotlin's corpus has only 12 problems, so all three seeds select the same set and there is no
 held-out check; read its numbers as indicative. Scores change for these languages.
+
+## [0.1.0] - csimx
+
+csimx is a fork of csim 4.1.0 (the structural stage, trees and index, is unchanged and gives the
+same scores) with a second, lexical stage. Everything below this entry is the history of csim,
+written when the project was still called csim.
 
 ### Lexical prefilter for `group` (opt-in)
 
