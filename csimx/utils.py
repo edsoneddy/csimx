@@ -227,6 +227,8 @@ def process_files(path, lang):
             file_path = os.path.join(path, file)
             if os.path.isfile(file_path) and file.endswith(get_extension_by_lang(lang)):
                 file_name, content = read_file(file_path)
+                if content is None:  # read_file already said why; skip it instead of failing later
+                    continue
                 file_names.append(file_name)
                 file_contents.append(content)
 

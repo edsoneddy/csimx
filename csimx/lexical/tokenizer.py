@@ -40,7 +40,8 @@ def Tokenize(content, lang):
     for token_type, text in lex(content, _lexer(lang)):
         if token_type in Token.Comment or not text.strip():
             continue
-        if token_type in kept_as_written or token_type not in _type_ids:
+        # `in` also matches the subtypes (Keyword.Type, Keyword.Declaration, Operator.Word, ...)
+        if any(token_type in kind for kind in kept_as_written) or token_type not in _type_ids:
             keys.append(text)
         else:
             keys.append(_type_ids[token_type])

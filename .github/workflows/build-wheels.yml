@@ -125,9 +125,19 @@ jobs:
           print("native parsers active: java_20, java_24, cpp_14, python_3, kotlin, c")
           # The lexical stage needs Pygments, installed as a dependency of the wheel.
           from csimx import LexicalDistance, LexicalIndex, Tokenize
-          a, b = Tokenize("x = 1\nprint(x)", "python_3"), Tokenize("y = 2\nprint(y)", "python_3")
-          if LexicalIndex(LexicalDistance(a, b), len(a), len(b)) != 1.0:
-              raise SystemExit("the lexical stage does not work in the wheel")
+          samples = {
+              "python_3": ("x = 1\nprint(x)", "y = 2\nprint(y)"),
+              "python_3_13": ("x = 1\nprint(x)", "y = 2\nprint(y)"),
+              "java_20": ("class A { int f() { return 1; } }", "class B { int g() { return 2; } }"),
+              "java_24": ("class A { int f() { return 1; } }", "class B { int g() { return 2; } }"),
+              "cpp_14": ("int f() { return 1; }", "int g() { return 2; }"),
+              "c": ("int f() { return 1; }", "int g() { return 2; }"),
+              "kotlin": ("fun f(): Int { return 1 }", "fun g(): Int { return 2 }"),
+          }
+          for lang, (x, y) in samples.items():
+              a, b = Tokenize(x, lang), Tokenize(y, lang)
+              if LexicalIndex(LexicalDistance(a, b), len(a), len(b)) != 1.0:
+                  raise SystemExit(f"the lexical stage does not work in the wheel ({lang})")
           print("lexical stage active")
           PY
 
@@ -221,9 +231,19 @@ jobs:
           print("native parsers active: java_20, java_24, cpp_14, python_3, kotlin, c")
           # The lexical stage needs Pygments, installed as a dependency of the wheel.
           from csimx import LexicalDistance, LexicalIndex, Tokenize
-          a, b = Tokenize("x = 1\nprint(x)", "python_3"), Tokenize("y = 2\nprint(y)", "python_3")
-          if LexicalIndex(LexicalDistance(a, b), len(a), len(b)) != 1.0:
-              raise SystemExit("the lexical stage does not work in the wheel")
+          samples = {
+              "python_3": ("x = 1\nprint(x)", "y = 2\nprint(y)"),
+              "python_3_13": ("x = 1\nprint(x)", "y = 2\nprint(y)"),
+              "java_20": ("class A { int f() { return 1; } }", "class B { int g() { return 2; } }"),
+              "java_24": ("class A { int f() { return 1; } }", "class B { int g() { return 2; } }"),
+              "cpp_14": ("int f() { return 1; }", "int g() { return 2; }"),
+              "c": ("int f() { return 1; }", "int g() { return 2; }"),
+              "kotlin": ("fun f(): Int { return 1 }", "fun g(): Int { return 2 }"),
+          }
+          for lang, (x, y) in samples.items():
+              a, b = Tokenize(x, lang), Tokenize(y, lang)
+              if LexicalIndex(LexicalDistance(a, b), len(a), len(b)) != 1.0:
+                  raise SystemExit(f"the lexical stage does not work in the wheel ({lang})")
           print("lexical stage active")
           PY
 

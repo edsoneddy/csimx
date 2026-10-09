@@ -12,6 +12,23 @@ csimx is a fork of csim 4.1.0 (the structural stage, trees and index, is unchang
 same scores) with a second, lexical stage. Everything below this entry is the history of csim,
 written when the project was still called csim.
 
+### Lexical stage: checked on all seven languages, two fixes
+
+The lexical stage and `group --prefilter` were checked on `python_3`, `python_3_13`, `java_20`,
+`java_24`, `cpp_14`, `c` and `kotlin` (tokenizing ~29000 real files without errors, clones vs.
+unrelated pairs, 1440 same-problem pairs per language, `group` with and without the filter through
+the CLI). With margin 0.05 and threshold 0.7 the filter lost no pair that the structural stage
+flags, except 1 of 238 in `python_3_13` (structural 0.71, lexical 0.63; margin 0.10 loses none);
+the groups were identical in every language. The default margin is unchanged.
+
+* Fixed: keyword subtypes (`Keyword.Type`, `Keyword.Declaration`, `Operator.Word`, ...) were
+  generalized to one id instead of being kept as written, so `int` equalled `double` and `and`
+  equalled `or`, against what is documented above. The effect on the measured pairs is cosmetic.
+* Fixed: a file that cannot be read as UTF-8 is now skipped by `group` / `report` (with the message
+  `read_file` already printed) instead of failing later, and later with a worse message under
+  `--prefilter`.
+* New tests for the stage in all seven languages; the wheel smoke test in CI now checks all seven.
+
 ### Canonical operator forms for Java, C++, C and Kotlin
 
 The pass that `python_3` got in csim 4.1.0 now exists for `java_20`, `java_24`, `cpp_14`, `c` and
