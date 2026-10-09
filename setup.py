@@ -49,7 +49,7 @@ except ImportError:
 
 setup(
     name="csimx",
-    version="0.2.0",
+    version="0.2.1",
     packages=find_packages(),
     package_data={
         # Compiled native parsers, when built (scripts/build_native_parsers.sh).

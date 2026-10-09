@@ -6,7 +6,10 @@ so they summarise each line rather than list every change.
 Note: "dataset F" in the 3.4.2 to 4.0.1 entries is the *first* F (Faidhi ladders, since retired);
 the current F of the scsc repository is a different dataset, see `docs/pruning_fidelity.md`.
 
-## [Unreleased]
+## [0.2.1] - csimx
+
+Patch release: the structural stage is unchanged, so **no structural score changes** from 0.2.0. Only
+the lexical stage (`--prefilter`, `Tokenize`) and the files `group` / `report` read change.
 
 * Lexical stage: a string literal is now one token however Pygments splits it (quotes, pieces,
   escapes, f-string fields, raw-string delimiters), so the token count no longer depends on the text
