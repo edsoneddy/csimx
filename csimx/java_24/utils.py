@@ -289,6 +289,10 @@ STRUCTURAL_RULE_INDICES = {
 
 # `for` and `while` are interchangeable ways to write the same loop (a common
 # clone rewrite), so they share one label; do-while keeps its own.
+# Unify equivalent operator forms (a + b / b + a, a >= b / b <= a, ...) before
+# pruning; see java_24/canonical.py.
+CANONICAL_FORMS = True
+
 CONTROL_EQUIVALENCE_RULE_INDICES = {
     SYNTHETIC_FOR_STMT: "LOOP",
     SYNTHETIC_WHILE_STMT: "LOOP",

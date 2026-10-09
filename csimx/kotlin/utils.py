@@ -170,6 +170,16 @@ STRUCTURAL_RULE_INDICES = {
 
 # `for` and `while` are interchangeable ways to write the same loop (a common
 # clone rewrite), so they share one label; do-while keeps its own.
+# Unify equivalent operator forms (a + b / b + a, a > b / b < a, ...) before
+# pruning; see kotlin/canonical.py.
+CANONICAL_FORMS = True
+
+# Exponent for the weight of a hashed node (its subtree size ** alpha) in the
+# tree edit distance, as in python_3; see docs/pruning_fidelity.md. MAE vs the
+# near-raw tree on the synthetic all_kotlin set (only 12 problems, so all seeds
+# pick the same set: indicative, not held out) 0.083 -> 0.054; bias ~0.
+HASH_MASS_ALPHA = 0.6
+
 CONTROL_EQUIVALENCE_RULE_INDICES = {
     KotlinParser.RULE_forExpression: "LOOP",
     KotlinParser.RULE_whileExpression: "LOOP",

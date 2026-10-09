@@ -382,14 +382,14 @@ def get_relabel_fn(lang):
 def get_canonicalizer(lang):
     """Language-specific pass that unifies equivalent forms of a construct on the
     normalized tree (before pruning and hashing), or None if the language has none."""
-    if lang == "python_3":
-        from .python_3 import utils as lang_utils
+    import importlib
 
-        if getattr(lang_utils, "CANONICAL_FORMS", False):
-            from .python_3.canonical import canonicalize
-
-            return canonicalize
-    return None
+    if lang not in ("python_3", "java_20", "java_24", "cpp_14", "c", "kotlin"):
+        return None
+    lang_utils = importlib.import_module(f".{lang}.utils", package=__package__)
+    if not getattr(lang_utils, "CANONICAL_FORMS", False):
+        return None
+    return importlib.import_module(f".{lang}.canonical", package=__package__).canonicalize
 
 
 def get_hash_mass_alpha(lang):

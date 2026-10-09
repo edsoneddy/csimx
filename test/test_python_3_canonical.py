@@ -67,6 +67,6 @@ def test_canonical_forms_can_be_turned_off(monkeypatch):
 
 
 def test_other_languages_are_unaffected():
-    a = "int main() { if (a > b) { return 1; } return 0; }"
-    b = "int main() { if (b < a) { return 1; } return 0; }"
-    assert Compare(content_a=a, content_b=b, lang="cpp_14") < 1.0
+    a = "def f(a, b):\n    if a > b:\n        return 1\n    return 2\n"
+    b = "def f(a, b):\n    if b < a:\n        return 1\n    return 2\n"
+    assert Compare(content_a=a, content_b=b, lang="python_3_13") < 1.0

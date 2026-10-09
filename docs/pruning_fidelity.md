@@ -269,3 +269,21 @@ error of the similarity index of the pruned tree vs. the near-raw reference, `py
 0.053 / 0.061 / 0.054 with canonical forms, 0.052 / 0.061 / 0.054 without them (seeds 7 / 11 / 23;
 bias +0.010 / -0.007 / -0.017). The canonical forms do not move the fidelity of the pruning.
 
+
+## Weighted hashes in the other languages (csimx 0.1.0)
+
+Same protocol as above (near-raw reference, three sets of 12 problems, seeds 7/11/23, files of 5-260
+nodes), sweeping `HASH_MASS_ALPHA`. MAE by seed (7 / 11 / 23):
+
+| language | none | 0.25 | 0.4 | 0.6 | 0.75 | chosen |
+|---|---|---|---|---|---|---|
+| java_20 | .075 / .067 / .063 | .054 / .053 / .048 | **.047 / .051 / .045** | .046 / .054 / .047 | - | 0.4 |
+| java_24 | .077 / .071 / .065 | .070 / .066 / .064 | .070 / .070 / .066 | .072 / .081 / .070 | - | none |
+| cpp_14 | .080 / .087 / .089 | - | .058 / .056 / .063 | **.056 / .051 / .063** | .058 / .055 / .074 | 0.6 |
+| c | .123 / .110 / .115 | - | .087 / .082 / .093 | .070 / .078 / .078 | .068 / .081 / .078 | 0.6 |
+| kotlin | .083 | .071 | .055 | **.054** | - | 0.6 |
+
+`java_24` already keeps a median of 25 nodes per file (8x), its unweighted bias is ~0, and any alpha
+leaves a negative bias, so weighting gains little there. Kotlin has no real corpus and its three seeds
+coincide (12 problems). Controlled clones and 150 random cross-problem pairs per language are in the
+CHANGELOG.

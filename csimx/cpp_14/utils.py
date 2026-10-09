@@ -176,6 +176,14 @@ STRUCTURAL_RULE_INDICES = {
 # for / while / do-while / range-for are all one grammar rule
 # (iterationStatement) and interchangeable ways to write a loop -- `for` <->
 # `while` rewrites are common clones -- so they share one label.
+# Unify equivalent operator forms (a + b / b + a, a > b / b < a, ...) before
+# pruning; see cpp_14/canonical.py.
+CANONICAL_FORMS = True
+
+# Exponent for the weight of a hashed node (its subtree size ** alpha) in the
+# tree edit distance, as in python_3; see docs/pruning_fidelity.md. MAE on all_cpp (seeds 7/11/23, 23 held out) 0.080/0.087/0.089 -> 0.056/0.051/0.063; bias +0.03..0.06 -> +0.01..0.03.
+HASH_MASS_ALPHA = 0.6
+
 CONTROL_EQUIVALENCE_RULE_INDICES = {
     CPP14Parser.RULE_iterationStatement: "LOOP",
 }

@@ -12,6 +12,43 @@ csimx is a fork of csim 4.1.0 (the structural stage, trees and index, is unchang
 same scores) with a second, lexical stage. Everything below this entry is the history of csim,
 written when the project was still called csim.
 
+### Canonical operator forms for Java, C++, C and Kotlin
+
+The pass that `python_3` got in csim 4.1.0 now exists for `java_20`, `java_24`, `cpp_14`, `c` and
+`kotlin` (`CANONICAL_FORMS` in each `utils.py`, rules in `csimx/canonical_common.py` and a small
+`canonical.py` per language that only declares which grammar rules and tokens it applies to). It
+unifies `a + b` / `b + a`, `*`, `==`, `!=` (operand order), `a > b` / `b < a`, `a >= b` / `b <= a`
+and the operand order of `&&`, `||` and the bitwise operators whose token is not in the tree. Like
+the Python version it uses tree shape and token types only. `java_24` folds every operator into one
+`expression` rule and excludes `<`, `>`, `&&`, `||`, so there only `+`, `*`, `==`, `!=` and `>=`
+are unified. Not done (as in `python_3`): negation / De Morgan, `else { if }`, and inlining.
+
+Measured: rewritten pairs (`a + b * c` vs `c * b + a`, `>=` vs `<=`, `a > b + 1` vs `1 + b < a`)
+go from 0.94-0.97 to 1.00. The fidelity of the pruning does not move (MAE vs the near-raw tree, seeds
+7 / 11 / 23): java_20 .047 / .051 / .045 (same), java_24 .077 / .071 / .065 (same), cpp_14 .056 / .051 / .064 (+.001), c .070 / .078 /
+.078 (same), kotlin .054 (same); controlled clones and cross-problem false similarity are unchanged
+in every language. `CANONICAL_FORMS = False` restores the previous scores. Scores can change for
+programs that use these constructs.
+
+### Weighted hashes for `java_20`, `cpp_14`, `c` and `kotlin`
+
+The weighted hashes that `python_3` got in csim 3.4.2 (a hashed node keeps the mass of the subtree it
+replaced, `(size + 1) ** HASH_MASS_ALPHA`, and substitutions between hashed nodes of the same rule are
+charged by label overlap) are now on for four more languages, with `HASH_MASS_ALPHA` chosen per
+language. Tree size and edit-distance time are unchanged. Mean absolute error of the index vs. the
+near-raw tree (3 sets of 12 problems, seeds 7 / 11 / 23, 23 not used to choose):
+
+| language | alpha | MAE before | MAE now | controlled clones >= 0.7 | cross-problem >= 0.7 |
+|---|---|---|---|---|---|
+| java_20 | 0.4 | .075 / .067 / .063 | .047 / .051 / .045 | 34 -> 34 | 0 -> 0 of 150 |
+| cpp_14 | 0.6 | .080 / .087 / .089 | .056 / .051 / .063 | 34 -> 35 | 0 -> 0 of 150 |
+| c | 0.6 | .123 / .110 / .115 | .070 / .078 / .078 | 28 -> 33 | 0 -> 0 of 150 |
+| kotlin (synthetic) | 0.6 | .083 | .054 | 35 -> 34 | 15 -> 8 of 150 |
+
+`java_24` is left unweighted: alpha 0.25-0.6 moves the MAE by -0.007..+0.010 and adds a bias of -0.03 to
+-0.07. Kotlin's corpus has only 12 problems, so all three seeds select the same set and there is no
+held-out check; read its numbers as indicative. Scores change for these languages.
+
 ### Lexical prefilter for `group` (opt-in)
 
 The lexical stage (`csimx/lexical/`) compares the token sequences of two files: Pygments tokens
