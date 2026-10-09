@@ -123,6 +123,12 @@ jobs:
           if missing:
               raise SystemExit(f"native parsers not active in the wheel: {missing}")
           print("native parsers active: java_20, java_24, cpp_14, python_3, kotlin, c")
+          # The lexical stage needs Pygments, installed as a dependency of the wheel.
+          from csimx import LexicalDistance, LexicalIndex, Tokenize
+          a, b = Tokenize("x = 1\nprint(x)", "python_3"), Tokenize("y = 2\nprint(y)", "python_3")
+          if LexicalIndex(LexicalDistance(a, b), len(a), len(b)) != 1.0:
+              raise SystemExit("the lexical stage does not work in the wheel")
+          print("lexical stage active")
           PY
 
       - uses: actions/upload-artifact@v4
@@ -213,6 +219,12 @@ jobs:
           if missing:
               raise SystemExit(f"native parsers not active in the wheel: {missing}")
           print("native parsers active: java_20, java_24, cpp_14, python_3, kotlin, c")
+          # The lexical stage needs Pygments, installed as a dependency of the wheel.
+          from csimx import LexicalDistance, LexicalIndex, Tokenize
+          a, b = Tokenize("x = 1\nprint(x)", "python_3"), Tokenize("y = 2\nprint(y)", "python_3")
+          if LexicalIndex(LexicalDistance(a, b), len(a), len(b)) != 1.0:
+              raise SystemExit("the lexical stage does not work in the wheel")
+          print("lexical stage active")
           PY
 
       - uses: actions/upload-artifact@v4
