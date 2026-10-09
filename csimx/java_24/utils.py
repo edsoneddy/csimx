@@ -154,7 +154,10 @@ EXCLUDED_TOKEN_TYPES = {
     # Statement keywords
     Java24Lexer.IF,
     Java24Lexer.ELSE,
-    Java24Lexer.WHILE,
+    # WHILE and FOR are deliberately NOT excluded (csimx-batch-tuner fidelity sweep, seed 7;
+    # held-out seeds 23/11): keeping them lowers the MAE vs the near-raw tree by 0.006-0.010 and
+    # the false similarity of unrelated programs, for ~4% more nodes. Loop equivalence
+    # (for == while) is done by CONTROL_EQUIVALENCE_RULE_INDICES, not by this token.
     Java24Lexer.DO,
     Java24Lexer.SWITCH,
     Java24Lexer.SYNCHRONIZED,
@@ -197,7 +200,6 @@ EXCLUDED_TOKEN_TYPES = {
     Java24Lexer.YIELD,
     Java24Lexer.ASSERT,
     Java24Lexer.FINALLY,
-    Java24Lexer.FOR,
     Java24Lexer.THIS,
     Java24Lexer.ELLIPSIS,
     Java24Lexer.BANG,
@@ -319,6 +321,10 @@ AUG_ASSIGN_OPS = {
 EXCLUDED_RULE_TYPES = {
     Java24Parser.RULE_identifier,
     Java24Parser.RULE_typeIdentifier,
+    # Return/declared type: which type was written is not structure (the primitive-type
+    # keywords are excluded for the same reason). Fidelity sweep: -5% nodes, MAE -0.005,
+    # fewer false cross-problem pairs; held-out seeds 23/11 confirm.
+    Java24Parser.RULE_typeTypeOrVoid,
     # Modifiers (`public`, `static`, `final`, ...): declaration boilerplate that
     # differs between equivalent programs and that java_20 folds into its hashed
     # methodHeader. Without this a wrapped/extracted method scores ~0.64 instead

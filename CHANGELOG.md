@@ -12,6 +12,35 @@ csimx is a fork of csim 4.1.0 (the structural stage, trees and index, is unchang
 same scores) with a second, lexical stage. Everything below this entry is the history of csim,
 written when the project was still called csim.
 
+### Pruning sweep of all seven languages (fidelity-scored), three small config changes
+
+`.claude/skills/csimx-batch-tuner/scripts/fidelity_sweep.py` measures every unclassified token and
+rule that occurs in a sample (and the removal of every existing entry) against the near-raw tree:
+tree size, MAE of the index and false similarity of cross-problem pairs (8 problems x 8 files per
+sample, seed 7). Recommendations were then combined greedily and **validated on two samples not used
+to choose (seeds 23 and 11)**; only changes that held on both were applied:
+
+| language | change | MAE (s23 / s11) | nodes | clones >= 0.7 | cross mean |
+|---|---|---|---|---|---|
+| java_24 | `FOR`, `WHILE` no longer excluded; `typeTypeOrVoid` excluded | -.0048 / -.0064 | +2.4..+3.6% | 34 -> 35 | .209 -> .205 |
+| cpp_14 | `PlusPlus` no longer excluded; `expressionList` no longer collapsed | -.0033 / -.0063 | 0% | 35 -> 35 | .186 -> .175 |
+| kotlin | `IF`, `ELSE`, `FUN` excluded | -.0056 / -.0044 | -13% | 34 -> 34 | .393 -> .368 |
+
+Nothing to change in `c` (all 27 candidates rejected; the ones that prune structure raise the MAE by
+up to 0.24 and create up to 46 false cross-problem pairs). **Not applied** because they improved the
+chosen sample but not the held-out ones: `java_20` (`methodModifier`, `forUpdate` exclusions: MAE
++.0035 / +.0050), `python_3` (`else_clause` collapse, `IF`/`ELSE` tokens: +.0063 / -.0005) and
+`python_3_13` (`named_expression`, `LPAR`/`RPAR`, `else_block`: +.0182 / +.0033). Kotlin's corpus has
+only 12 problems, so its held-out seeds are not independent. Scores change slightly for these three
+languages.
+
+Tooling: the three tuning skills now live in the repo (`.claude/skills/csimx-*`), cover all seven
+languages and share `scripts/langs.py`. An older measurement detail was corrected on the way:
+`Visitors.py` binds `COLLAPSED_RULE_INDICES` when it is imported, so the near-raw reference of the
+earlier tables (`docs/pruning_fidelity.md`, csimx 0.1.0 section) still collapsed `package`/`import`/
+array initializers; the sweep empties the sets in place. The comparisons between configs in those
+tables are unaffected (same reference for all of them); absolute MAE values are slightly low.
+
 ### Lexical stage: checked on all seven languages, two fixes
 
 The lexical stage and `group --prefilter` were checked on `python_3`, `python_3_13`, `java_20`,

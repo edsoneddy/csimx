@@ -87,7 +87,9 @@ EXCLUDED_TOKEN_TYPES = {
     CPP14Lexer.Throw,
     CPP14Lexer.Union,
     CPP14Lexer.Assign,
-    CPP14Lexer.PlusPlus,
+    # PlusPlus is NOT excluded any more (csimx-batch-tuner fidelity sweep, seed 7; held-out seeds
+    # 23/11: MAE -0.003..-0.006, cross-problem similarity -0.03): with it visible, `i++` and
+    # `i--` stay different and the MinusMinus note above no longer needs the asymmetry.
 }
 EXCLUDE_CHILDRENS_FROM_RULE = dict()
 
@@ -98,7 +100,7 @@ COLLAPSED_RULE_INDICES = {
     CPP14Parser.RULE_namespaceAliasDefinition,
     # Aggregate-initialization literal syntax ('{1, 2, 3}', 'Point{1, 2}')
     CPP14Parser.RULE_bracedInitList,
-    CPP14Parser.RULE_expressionList,
+    # expressionList (call arguments) is NOT collapsed any more: same sweep, MAE -0.003..-0.006.
     CPP14Parser.RULE_baseSpecifier,
     CPP14Parser.RULE_memInitializer,
 }

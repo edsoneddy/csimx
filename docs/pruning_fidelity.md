@@ -287,3 +287,16 @@ nodes), sweeping `HASH_MASS_ALPHA`. MAE by seed (7 / 11 / 23):
 leaves a negative bias, so weighting gains little there. Kotlin has no real corpus and its three seeds
 coincide (12 problems). Controlled clones and 150 random cross-problem pairs per language are in the
 CHANGELOG.
+
+## Fidelity sweep of the pruning sets (csimx 0.1.0)
+
+`fidelity_sweep.py` (skill `csimx-batch-tuner`) turns the protocol above into a loop: for every
+token/rule present in at least 3 sampled files it measures adding it to `EXCLUDED_TOKEN_TYPES`,
+`EXCLUDED_RULE_TYPES`, `COLLAPSED_RULE_INDICES` or `HASHED_RULE_INDICES`, and removing every
+existing member; the score is the change in MAE, in mean node count and in the index of 80 random
+cross-problem pairs. A rule that prunes structure is rejected immediately (e.g. C `iterationStatement`:
+-36% nodes, MAE +0.13, 26 extra false cross pairs). Recommended changes interact, so they are combined
+greedily and the set is validated on samples not used to choose. The shipped result: three small
+changes (see the CHANGELOG), and five proposals that did not generalize and were left out. The lesson
+is the same as in the alpha sweep: a single 8-problem sample overfits; the selection needs held-out
+seeds, and an empty recommendation list is a normal outcome for a config that was already swept.

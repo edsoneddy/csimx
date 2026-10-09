@@ -34,6 +34,13 @@ from antlr4 import Token
 # drive the next pass.
 
 EXCLUDED_TOKEN_TYPES = {
+    # IF / ELSE / FUN: redundant once the parent rule (ifExpression, functionDeclaration) carries
+    # its own label. csimx-batch-tuner fidelity sweep: -13% nodes, MAE -0.005 and fewer false
+    # cross-problem pairs on seeds 23 and 11 (the synthetic corpus has 12 problems, so those
+    # seeds are not independent of the one used to choose: indicative).
+    KotlinLexer.IF,
+    KotlinLexer.ELSE,
+    KotlinLexer.FUN,
     # Structural / whitespace / comment tokens. WS is `-> skip` in the
     # lexer (never reaches a token at all) and comments go to the HIDDEN
     # channel (never reach the parse tree) -- only NL is both a real,
