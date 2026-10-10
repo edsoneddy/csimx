@@ -1,8 +1,4 @@
 """Canonical operator forms for cpp_14 (see ../canonical_common.py).
-
-One rule per precedence level. `<`, `>`, `<=`, `>=`, `+`, `*`, `==`, `!=`, `&` and `|` keep their
-token; `&&`, `||` and `^` are excluded tokens, so those nodes have two children and their operands
-are simply put in a fixed order. `a > b` is rewritten to `b < a` and `a >= b` to `b <= a`.
 """
 from ..canonical_common import CanonicalSpec, canonicalize_with
 from .CPP14Lexer import CPP14Lexer as L

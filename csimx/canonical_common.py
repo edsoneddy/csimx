@@ -1,24 +1,18 @@
-"""Table-driven canonical forms for operators (languages other than python_3).
+"""Table-driven canonical operator forms (all languages except python_3).
 
-Runs on the normalized tree (dicts with "label" and "children"), before pruning and hashing, so
-`a + b` / `b + a`, `a >= b` / `b <= a` and the like produce the same tree. Like
-python_3/canonical.py it only looks at the shape of the tree and at token types: native
-terminals carry no text, so nothing here compares identifiers, and the order key is built from
-labels alone.
+Runs on the normalized tree before pruning and hashing, so `a + b` / `b + a` and
+`a >= b` / `b <= a` give the same tree. Only tree shape and token types are used.
 
-A language describes its grammar with a `CanonicalSpec`:
+A language declares a `CanonicalSpec`:
 
-* `commutative`: rules whose nodes are `[left, op, right]` and whose `op` is in
-  `commutative_ops`; the two operands are put in a fixed order.
-* `symmetric`: rules whose nodes are `[left, right]` because the operator token is excluded from
-  the tree (`&&`, `||`, `<`, `>`, ...) and swapping the operands keeps the meaning (`a < b` ==
-  `b > a`); the two operands are put in a fixed order.
-* `orient`: `(rules, {GE: LE, GT: LT})`: `[a, GE, b]` is rewritten to `[b, LE, a]` (and the other
-  entries of the map likewise).
+* `commutative`: rules with nodes `[left, op, right]` and `op` in `commutative_ops`;
+  the operands are put in a fixed order.
+* `symmetric`: rules with nodes `[left, right]` (the operator token is excluded);
+  the operands are put in a fixed order.
+* `orient`: `(rules, {GE: LE, GT: LT})`; `[a, GE, b]` becomes `[b, LE, a]`.
 
-Not covered on purpose: chained operators of different kinds (`a - b + c`), and anything that
-needs to know a type (`+` on strings is not commutative; the shape-only rule accepts that, as
-python_3 does).
+Not covered: chains of different operators (`a - b + c`) and anything that needs types
+(`+` on strings is not commutative).
 """
 from dataclasses import dataclass, field
 
@@ -45,7 +39,7 @@ def canonicalize_with(spec, tree):
     orient_rules, orient_ops = spec.orient
 
     def run(node):
-        # iterative post-order: real programs nest deeper than the recursion limit
+        # iterative: real programs nest deeper than the recursion limit
         stack, order = [node], []
         while stack:
             n = stack.pop()

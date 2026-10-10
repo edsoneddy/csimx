@@ -215,7 +215,7 @@ def get_extension_by_lang(lang):
         raise ValueError(f"Unsupported language: {lang}")
 
 
-# Extra extensions accepted by `process_files` besides the one of get_extension_by_lang.
+# Extra extensions read by `process_files`.
 EXTRA_EXTENSIONS = {
     "cpp_14": (".cc", ".cxx", ".hpp", ".hh", ".hxx"),
     "c": (".h",),
@@ -240,7 +240,7 @@ def process_files(path, lang):
             file_path = os.path.join(path, file)
             if os.path.isfile(file_path) and file.endswith(get_extensions_by_lang(lang)):
                 file_name, content = read_file(file_path)
-                if content is None:  # read_file already said why; skip it instead of failing later
+                if content is None:  # unreadable; read_file already said why
                     continue
                 file_names.append(file_name)
                 file_contents.append(content)
@@ -726,11 +726,8 @@ def group_by_exhaustive_search(
     it is at most MAX_PREFILTER_MARGIN. `stats`, if given, is filled with the number of pairs,
     the pairs skipped by the filter and the files parsed.
 
-    `progress(phase, done, total)`, if given, is called as the work advances: phase "parse" (every
-    file is parsed first when there is no prefilter), "lexical" (the token comparison of every
-    pair, prefilter only) and "structural" (the pairs that are compared structurally; with the
-    prefilter their total is known once "lexical" is over). The callback only reports: it does
-    not change the result.
+    `progress(phase, done, total)`, if given, reports the work as it advances. Phases: "parse"
+    (no prefilter), "lexical" (prefilter only) and "structural". It does not change the result.
     """
 
     file_number = len(file_names)
@@ -766,7 +763,6 @@ def group_by_exhaustive_search(
     similarity_indices = [0.00] * file_number
     skipped = 0
 
-    # the pairs to compare structurally, in the usual order
     if prefilter:
         total_pairs = file_number * (file_number - 1) // 2
         pending, seen = [], 0

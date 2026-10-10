@@ -1,44 +1,14 @@
 #!/usr/bin/env python3
-"""
-Enumerate ANTLR-generated tokens and rules for a csim-supported language, and
-classify each one against the compression dictionaries/sets already defined
-in csimx/<lang>/utils.py.
-
-Shared, unchanged, with the sibling csimx-tree-compressor skill. Here it's
-Step 2's starting point: the vast majority of items should already be
-classified (that's the whole premise of csimx-corpus-tuner -- validating and
-lightly extending a config that's already mostly filled in), so this list
-of empty-classified_as items should normally be short.
-
-This must run in an environment where csim is importable (e.g. `pip install -e .`
-was run in the csim repo, per its CLAUDE.md).
+"""Enumerate the ANTLR tokens and rules of a csimx language and classify each against the sets
+already defined in csimx/<lang>/utils.py. Needs csimx importable (`pip install -e .`).
 
 Usage:
-    python enumerate_candidates.py --lang cpp
-    python enumerate_candidates.py --lang java --json java_candidates.json
+    python enumerate_candidates.py --lang cpp_14
+    python enumerate_candidates.py --lang java_20 --json java_candidates.json
 
-Output (stdout, JSON):
-{
-  "lang": "cpp",
-  "tokens": [
-    {"id": 5, "name": "Comma", "classified_as": []},
-    ...
-  ],
-  "rules": [
-    {"id": 0, "name": "translationUnit", "classified_as": []},
-    {"id": 3, "name": "ifStatement", "classified_as": ["HASHED_RULE_INDICES"]},
-    ...
-  ]
-}
-
-A rule/token with an empty "classified_as" list has never been evaluated for
-any compression strategy in this language's utils.py -- it is a genuine
-candidate to test in this round.
-
-Items that already have entries are included too (for context / auditing).
-csimx-corpus-tuner's regression check (run_round.py --regression-check)
-re-evaluates those directly against the real corpus, so you don't need to
-manually decide which already-classified items to revisit here.
+Output (JSON): {"lang", "tokens": [{"id", "name", "classified_as": []}], "rules": [...]}.
+An empty "classified_as" means the token/rule was never evaluated: a candidate for the tuning
+loop in SKILL.md.
 """
 import argparse
 import importlib

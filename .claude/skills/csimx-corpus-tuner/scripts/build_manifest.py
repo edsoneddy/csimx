@@ -1,27 +1,13 @@
 #!/usr/bin/env python3
-"""
-Scan a real code corpus (e.g. a programming-judge dataset laid out as
-<corpus_root>/<problem_id>/<submission>.<ext>) and build a manifest of which
-files ANTLR can actually parse cleanly for a given csim language.
+"""Scan a real code corpus (<corpus_root>/<problem_id>/<submission>.<ext>) and build a manifest of
+the files ANTLR parses cleanly for a csimx language.
 
-Why this exists instead of a plain try/except around ANTLR_parse: csim's
-lexer/parser report syntax errors (including things like inconsistent
-tab/space indentation in python) through an error LISTENER, not by raising
-an exception -- csimx/language/parser.py's own ANTLR_parse just prints them
-and returns whatever (possibly wrong) tree ANTLR's error recovery produced.
-So "did this file actually parse cleanly" has to be answered by attaching a
-listener that counts syntaxError() calls, not by catching exceptions.
-
-This scan is the expensive, one-time-ish part -- rerun it only when the
-corpus changes (the manifest stores a cheap signature of the corpus so you
-can tell). Everything downstream (sample_round.py, run_round.py) reads the
-manifest instead of re-touching every file on disk.
-
-Must run in an environment where csim is importable (`pip install -e .` in
-the csim repo).
+ANTLR reports syntax errors through a listener instead of raising, so a clean parse is decided by
+counting syntaxError() calls. The scan is the expensive part: rerun it only when the corpus changes.
+sample_round.py and run_round.py read the manifest.
 
 Usage:
-    python build_manifest.py --lang python --corpus-root /path/to/all_py --out manifest_python.json
+    python build_manifest.py --lang python_3 --corpus-root /path/to/all_py --out manifest_python_3.json
 """
 import argparse
 import hashlib
@@ -37,27 +23,10 @@ from langs import LANG_PARSE_CONFIG, EXTENSION_BY_LANG
 
 
 
-# Mirrors csimx/language/parser.py's per-language lexer/parser/entry-rule
-# wiring, since we need our own error-counting listener instead of the
-# print-only ExtendedErrorListener that ships with csim.
-
-
 class CountingErrorListener(ErrorListener):
-    """Attach the SAME instance to both the lexer and the parser (that's
-    what csimx/language/parser.py does too). Every syntaxError() call, from
-    either recognizer, increments count -- no printing, no exceptions, just
-    a reliable "did anything go wrong" signal.
-
-    MUST subclass antlr4's ErrorListener (not a bare object): ANTLR's parser
-    interpreter calls reportAttemptingFullContext/reportAmbiguity/
-    reportContextSensitivity on the attached listener during ordinary
-    SLL->LL adaptive-prediction fallback -- which happens on plenty of
-    syntactically VALID files, not just broken ones. The base class
-    supplies no-op stubs for those; a bare-object listener doesn't have
-    them, so a normal file can raise AttributeError here and get
-    misclassified as a parse failure. (csim's own ExtendedErrorListener in
-    csimx/language/parser.py does this correctly -- this class mirrors it.)
-    """
+    """Counts syntaxError() calls; attach the SAME instance to lexer and parser.
+    It must subclass ErrorListener: the parser calls reportAmbiguity & co. on valid files too,
+    and a bare object would raise AttributeError and be misread as a parse failure."""
 
     def __init__(self):
         self.count = 0

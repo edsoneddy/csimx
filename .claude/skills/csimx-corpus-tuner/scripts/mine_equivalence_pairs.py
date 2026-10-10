@@ -1,33 +1,15 @@
 #!/usr/bin/env python3
-"""
-Mine real same-problem solution pairs from a corpus manifest to empirically
-validate CONTROL_EQUIVALENCE_RULE_INDICES and (python-only, see below)
-ASIGN_OP_NORMALIZED candidates -- the two csim knobs that don't reduce tree
-size, they make Type-3-obfuscation-equivalent code (a for/while swap,
-x+=1 vs x=x+1) compare as more similar. Unlike the five size knobs, "does
-this help" isn't measured by node count here, it's measured by tree edit
-distance (TreeEditDistance + SimilarityIndex, the same functions csim's own
-Compare() uses) -- so this is the one place in csimx-corpus-tuner that
-actually exercises TED.
-
-Why same-problem pairs are good evidence: two independent solutions to the
-SAME judge problem are the closest thing to a natural obfuscation
-experiment you can get without writing one. If one author's solution has a
-`for` loop and another's has an equivalent `while` loop for the same task,
-or one wrote `x += 1` and another `x = x + 1`, that's a REAL example of
-exactly the Type-3 substitution these knobs exist to smooth over -- not a
-hand-picked synthetic pair.
-
-Must run in an environment where csim is importable (`pip install -e .` in
-the csim repo).
+"""Mine same-problem solution pairs from a corpus manifest to validate candidates for
+CONTROL_EQUIVALENCE_RULE_INDICES and (python only) ASIGN_OP_NORMALIZED, the knobs that make
+Type-3-equivalent code (for/while swap, `x += 1` vs `x = x + 1`) compare as more similar.
+These are measured with the tree edit distance, not node count.
 
 Usage:
-    python mine_equivalence_pairs.py --lang python --manifest manifest_python.json \\
+    python mine_equivalence_pairs.py --lang python_3 --manifest manifest_python_3.json \\
         --equivalence-candidates equivalence_candidates.json \\
-        --max-pairs-per-problem 15 --max-files-per-problem 40 \\
-        --out equivalence_results.json
+        --max-pairs-per-problem 15 --max-files-per-problem 40 --out equivalence_results.json
 
-equivalence_candidates.json shape:
+equivalence_candidates.json:
 {
   "control_groups": [
     {"name": "for/while loop", "tag": "LOOP", "rules": {"71": "for_stmt", "72": "while_stmt"}}
@@ -37,33 +19,14 @@ equivalence_candidates.json shape:
   ]
 }
 
-Figuring out the right "rules" (for control_groups) and "rule"/"operator_token"
-(for assign_op_candidates) values takes real grammar knowledge -- this
-script only measures whether a proposed mapping helps, it doesn't propose
-the mapping itself. For control_groups: rule indices come from
-Parser.ruleNames (same as enumerate_candidates.py). For assign_op_candidates:
-"rule" must be the SAME rule the grammar already uses for the expanded
-binary-op form (e.g. whatever rule parses "x + y" as a bare expression),
-so that after rewriting, "x += 1" produces the identical tree shape a
-human writing "x = x + 1" would naturally produce -- get this wrong and
-the "equivalence" is fake. "operator_token" is the token type for the
-plain operator (e.g. PLUS, not PLUS_ASSIGN).
+This script only measures a proposed mapping. Rule indices come from Parser.ruleNames (see
+enumerate_candidates.py). For assign_op_candidates, "rule" must be the rule the grammar uses for
+the expanded binary-op form and "operator_token" the plain operator (PLUS, not PLUS_ASSIGN).
 
-IMPORTANT operational note (this cost real debugging time in run_round.py,
-don't repeat it here): csim's Visitors.py reads COLLAPSED_RULE_INDICES and
-ASIGN_OP_NORMALIZED via a ONE-TIME import at Visitors.py's own module-load
-time, bypassing csimx/utils.py's normally-dynamic get_* dispatcher. That
-means ASIGN_OP_NORMALIZED can only be overridden for testing by mutating
-the EXISTING dict object in place (clear + update) -- reassigning
-utils_mod.ASIGN_OP_NORMALIZED to a new dict would silently have no effect
-on what Visitors.py's visitAssignment actually checks. CONTROL_EQUIVALENCE_RULE_INDICES
-does NOT have this problem (it's read fresh via the dispatcher inside
-PruneAndHash every call), so it's safe to reassign.
-
-assign_op_candidates ONLY works for python today: java/cpp don't have a
-visitAssignment-style override in Visitors.py yet (see csimx-tree-compressor's
-SKILL.md, "Optional secondary pass" section) -- adding one is a prerequisite
-code change, not something this script can test around.
+Visitors.py binds COLLAPSED_RULE_INDICES and ASIGN_OP_NORMALIZED at import time, so override
+ASIGN_OP_NORMALIZED by mutating the existing dict in place. CONTROL_EQUIVALENCE_RULE_INDICES is
+read fresh and can be reassigned. assign_op_candidates only works for python (no visitAssignment
+override for java/cpp yet).
 """
 import argparse
 import importlib

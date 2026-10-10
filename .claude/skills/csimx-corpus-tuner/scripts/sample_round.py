@@ -1,34 +1,18 @@
 #!/usr/bin/env python3
-"""
-Draw one round of a stratified, cumulative sample from a corpus manifest
-(built by build_manifest.py), for the csimx-corpus-tuner adaptive LOOP.
+"""Draw one round of a stratified, cumulative sample from a corpus manifest (build_manifest.py)
+for the csimx-corpus-tuner loop.
 
-Two things per round:
-
-1. The round's file sample -- stratified by problem (capped per problem so
-   one huge problem folder can't dominate a round and skew statistics),
-   drawn only from files not already used in a previous round (state is
-   persisted in --state, so repeated calls accumulate rather than
-   overlapping -- that's what makes "round 2" a genuinely bigger sample
-   than "round 1", not just a different one).
-
-2. A batch of cross-problem pairs -- two files from two DIFFERENT problem
-   folders, paired up. Since every problem in a judge dataset is a
-   different task, any cross-problem pair is a legitimate "these two are
-   algorithmically different" example for free, without hand-writing one.
-   These are what run_round.py's distinctiveness/regression checks use;
-   they're drawn fresh each round (not tracked in the "used" state) since
-   their job is just to be *some* honest pair of different problems, not to
-   contribute unique coverage the way the main sample does.
+Per round:
+1. A file sample, stratified by problem (capped per problem), drawn only from files not used in
+   a previous round (state in --state, so rounds accumulate).
+2. A batch of cross-problem pairs (files from two different problem folders): free examples of
+   "algorithmically different" programs for the distinctiveness and regression checks.
 
 Usage:
-    python sample_round.py --manifest manifest_python.json \\
-        --state sampling_state_python.json \\
-        --round-size 300 --per-problem-cap 5 --cross-pairs 10
+    python sample_round.py --manifest manifest_python_3.json \\
+        --state sampling_state_python_3.json --round-size 300 --per-problem-cap 5 --cross-pairs 10
 
-Prints one JSON object to stdout describing the round; also updates --state
-so the next call continues from where this one left off. Use --reset to
-discard state and start over (e.g. after the manifest changes).
+Prints one JSON object describing the round and updates --state. --reset discards the state.
 """
 import argparse
 import json

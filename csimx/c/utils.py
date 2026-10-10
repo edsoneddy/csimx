@@ -169,17 +169,15 @@ STRUCTURAL_RULE_INDICES = {
     CParser.RULE_translationUnit,
 }
 
+# Unify equivalent operator forms before pruning; see canonical.py.
+CANONICAL_FORMS = True
+
+# Weight exponent of a hashed node (subtree size ** alpha); see docs/pruning_fidelity.md.
+HASH_MASS_ALPHA = 0.6
+
 # for / while / do-while are all one grammar rule (iterationStatement) and
 # interchangeable ways to write a loop (`for` <-> `while` rewrites are common
 # clones), so they share one label.
-# Unify equivalent operator forms (a + b / b + a, a > b / b < a, ...) before
-# pruning; see c/canonical.py.
-CANONICAL_FORMS = True
-
-# Exponent for the weight of a hashed node (its subtree size ** alpha) in the
-# tree edit distance, as in python_3; see docs/pruning_fidelity.md. MAE on all_c (seeds 7/11/23, 23 held out) 0.123/0.110/0.115 -> 0.070/0.078/0.078; bias +0.03..0.04 -> ~-0.01.
-HASH_MASS_ALPHA = 0.6
-
 CONTROL_EQUIVALENCE_RULE_INDICES = {
     CParser.RULE_iterationStatement: "LOOP",
 }

@@ -1,40 +1,14 @@
 #!/usr/bin/env python3
-"""
-Enumerate ANTLR-generated tokens and rules for a csim-supported language, and
-classify each one against the compression dictionaries/sets already defined
-in csimx/<lang>/utils.py.
-
-This must run in an environment where csim is importable (e.g. `pip install -e .`
-was run in the csim repo, per its CLAUDE.md).
+"""Enumerate the ANTLR tokens and rules of a csimx language and classify each against the sets
+already defined in csimx/<lang>/utils.py. Needs csimx importable (`pip install -e .`).
 
 Usage:
-    python enumerate_candidates.py --lang cpp
-    python enumerate_candidates.py --lang java --json java_candidates.json
+    python enumerate_candidates.py --lang cpp_14
+    python enumerate_candidates.py --lang java_20 --json java_candidates.json
 
-Output (stdout, JSON):
-{
-  "lang": "cpp",
-  "tokens": [
-    {"id": 5, "name": "Comma", "classified_as": []},
-    ...
-  ],
-  "rules": [
-    {"id": 0, "name": "translationUnit", "classified_as": []},
-    {"id": 3, "name": "ifStatement", "classified_as": ["HASHED_RULE_INDICES"]},
-    ...
-  ]
-}
-
-A rule/token with an empty "classified_as" list has never been evaluated for
-any compression strategy in this language's utils.py -- it is a genuine
-candidate for the csimx-tree-compressor LOOP described in SKILL.md.
-
-Items that already have entries are included too (for context / auditing),
-but the LOOP should normally skip them -- unless you are deliberately
-re-testing whether a smarter strategy exists for something already
-classified (e.g. an EXCLUDED_RULE_TYPES entry that might do better as
-HASHED_RULE_INDICES instead). That kind of re-evaluation is a judgment call,
-not something this script decides for you.
+Output (JSON): {"lang", "tokens": [{"id", "name", "classified_as": []}], "rules": [...]}.
+An empty "classified_as" means the token/rule was never evaluated: a candidate for the tuning
+loop in SKILL.md.
 """
 import argparse
 import importlib

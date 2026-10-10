@@ -1,22 +1,16 @@
-"""Time estimate for `group`, from the real size of the pruned trees.
+"""Time estimate for `group`, from the size of the pruned trees.
 
-The cost of one structural comparison is dominated by the tree edit distance, and it grows with
-the product of the two tree sizes: measured on 7 languages, seconds per pair ~= a[lang] *
-(nodes_i * nodes_j) ** 1.2 (shared exponent, coefficient per language; see CHANGELOG 0.3.0 for the
-fit). `estimate_group` parses the files (cheap next to the comparisons), sums that cost over the pairs
-that will be compared and returns it for the machine it runs on: `calibrate()` times a fixed
-workload and gives the speed of this machine relative to the one the coefficients were measured on.
-
-It is an estimate: on the machine of the fit it was within -3%..+5% of the measured time for 100
-files in six languages and +15% for java_20; other machines, a loaded CPU and unusual files will be
-worse, which is why the result carries a range.
+The cost of a structural comparison grows with the product of the two tree sizes:
+seconds per pair ~= a[lang] * (nodes_i * nodes_j) ** 1.2 (see CHANGELOG 0.3.0 for the fit).
+`calibrate()` scales the result to the speed of the current machine. It is an estimate, so
+the result carries a range.
 """
 import itertools
 import statistics
 import time
 
 EXPONENT = 1.2
-# seconds per (nodes_i * nodes_j) ** EXPONENT on the reference machine (Apple M4 Pro, one core)
+# seconds per (nodes_i * nodes_j) ** EXPONENT, reference machine (Apple M4 Pro, one core)
 SECONDS_PER_UNIT = {
     "python_3": 1.38e-06,
     "python_3_13": 1.23e-06,
@@ -26,7 +20,7 @@ SECONDS_PER_UNIT = {
     "c": 7.77e-07,
     "kotlin": 1.02e-06,
 }
-# the estimate is shown as [LOW, HIGH] x the point value
+# range reported as [LOW, HIGH] x the point value
 RANGE_LOW, RANGE_HIGH = 0.7, 1.5
 
 _CAL_A = '''
@@ -67,7 +61,7 @@ def compute(items, bound):
         acc = acc - 500
     return acc, top
 '''
-# seconds of the calibration workload on the reference machine
+# calibration workload time on the reference machine
 REFERENCE_CALIBRATION_SECONDS = 0.085
 _calibration_cache = {}
 
@@ -110,19 +104,16 @@ def estimate_group(
     speed_factor=1.0,
     exact_prefilter=True,
 ):
-    """Estimate the time of `group_by_exhaustive_search` for these files, without running it.
+    """Estimate the time of `group_by_exhaustive_search` without running it.
 
-    Parses every file and, with `prefilter_margin`, runs the lexical stage on every pair to know
-    which pairs will be compared structurally. `speed_factor` scales the result to the machine
-    (`calibrate()`). With a margin, `exact_prefilter=True` runs the lexical stage to know the pairs
-    that remain (it costs time of its own, a lot for long files: 16 s for 100 Java files, and
-    `group` repeats it); `exact_prefilter=False` skips that and returns the upper bound (every pair).
+    Parses every file. With `prefilter_margin` and `exact_prefilter=True` it also runs the
+    lexical stage to know which pairs remain (slow for long files); `exact_prefilter=False`
+    skips that and returns the upper bound (every pair). `speed_factor` comes from `calibrate()`.
 
-    Returns a dict: files, pairs, structural_pairs (pairs left after the prefilter), skipped,
-    nodes {total, mean, median, max}, parse_seconds and lexical_seconds (measured here),
-    prefilter_evaluated, estimated_seconds (point value, parsing and lexical stage included),
-    upper_bound_seconds (the same files with a prefilter that skips nothing; equal to the estimate
-    when the prefilter is off or not evaluated), range_seconds [low, high], speed_factor.
+    Returns a dict: files, pairs, structural_pairs, skipped, nodes {total, mean, median, max},
+    parse_seconds, lexical_seconds, prefilter_evaluated, estimated_seconds,
+    upper_bound_seconds (cost if the prefilter skipped nothing), range_seconds [low, high],
+    speed_factor.
     """
     from .utils import MAX_PREFILTER_MARGIN, count_tree_nodes, preprocess_code
 
@@ -165,7 +156,6 @@ def estimate_group(
     fixed = parse_seconds + lexical_seconds  # measured on this machine, not scaled
     point = structural + fixed
     if prefilter_margin is not None and exact_prefilter:
-        # what the same files would take if the prefilter skipped nothing (the cheap estimate)
         every_pair = sum(pair_cost(nodes[i], nodes[j], lang) for i, j in itertools.combinations(range(n), 2))
         upper_bound = every_pair * speed_factor + fixed
     else:

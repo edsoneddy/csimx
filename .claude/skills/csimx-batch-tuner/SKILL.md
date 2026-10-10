@@ -9,9 +9,7 @@ description: Resumable, parallel, fidelity-scored sweep of a csimx language's pr
 
 - **csimx-tree-compressor**: concepts, the knobs, the safety reasoning, one language, interactive, snippets. Read its "What the csimx sweeps taught" section first.
 - **csimx-corpus-tuner**: real-corpus rounds (node reduction, regression check) and the TED tool for the equivalence knobs.
-- **csimx-batch-tuner** (this one): the automated version. It scores each candidate with the protocol of `docs/pruning_fidelity.md` instead of a hand-written snippet pair, so nothing needs to be written by hand and a whole language runs unattended.
-
-The older version of this skill used synthetic snippets and a label-overlap proxy for "did two different programs become alike". The corpus makes that unnecessary: same-problem pairs give the fidelity, random cross-problem pairs give the collapse trap.
+- **csimx-batch-tuner** (this one): the automated version. It scores each candidate with the protocol of `docs/pruning_fidelity.md`: same-problem pairs give the fidelity, random cross-problem pairs give the collapse trap.
 
 ## What a candidate is measured against
 
@@ -27,7 +25,7 @@ Verdicts (constants at the top of `fidelity_sweep.py`; they are starting points,
 | **add** | removes >= 2% of the nodes, MAE rises by <= 0.003, cross mean rises by <= 0.01 and no new cross pair reaches 0.7 |
 | **remove** an existing entry | MAE falls by >= 0.004, nodes grow by <= 10%, cross mean rises by <= 0.005, no new cross pair reaches 0.7 |
 
-Additions that remove < 0.5% of the nodes are skipped without computing the (slow) edit distance. Constructs that occur in fewer than `--min-files` (3) sampled files are not tested: there is no evidence either way.
+Additions that remove < 0.5% of the nodes are skipped without computing the edit distance. Constructs in fewer than `--min-files` (3) sampled files are not tested.
 
 ## The loop
 
@@ -59,7 +57,7 @@ Then:
 
 ## Apply (only after the user has seen the report)
 
-Edit `csimx/<lang>/utils.py` by hand, with a comment saying why (follow the style of the existing ones), then:
+Edit `csimx/<lang>/utils.py` by hand with a short comment saying why, then:
 
 1. `python -m pytest test -q`
 2. `validate` with the held-out seed; `csimx tree --path <file> --lang <lang> --show-raw` on a couple of files that were not in the sample.

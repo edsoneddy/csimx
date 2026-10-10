@@ -34,10 +34,7 @@ from antlr4 import Token
 # drive the next pass.
 
 EXCLUDED_TOKEN_TYPES = {
-    # IF / ELSE / FUN: redundant once the parent rule (ifExpression, functionDeclaration) carries
-    # its own label. csimx-batch-tuner fidelity sweep: -13% nodes, MAE -0.005 and fewer false
-    # cross-problem pairs on seeds 23 and 11 (the synthetic corpus has 12 problems, so those
-    # seeds are not independent of the one used to choose: indicative).
+    # IF / ELSE / FUN: redundant once the parent rule carries its own label.
     KotlinLexer.IF,
     KotlinLexer.ELSE,
     KotlinLexer.FUN,
@@ -175,18 +172,14 @@ STRUCTURAL_RULE_INDICES = {
     KotlinParser.RULE_anonymousInitializer,
 }
 
-# `for` and `while` are interchangeable ways to write the same loop (a common
-# clone rewrite), so they share one label; do-while keeps its own.
-# Unify equivalent operator forms (a + b / b + a, a > b / b < a, ...) before
-# pruning; see kotlin/canonical.py.
+# Unify equivalent operator forms before pruning; see canonical.py.
 CANONICAL_FORMS = True
 
-# Exponent for the weight of a hashed node (its subtree size ** alpha) in the
-# tree edit distance, as in python_3; see docs/pruning_fidelity.md. MAE vs the
-# near-raw tree on the synthetic all_kotlin set (only 12 problems, so all seeds
-# pick the same set: indicative, not held out) 0.083 -> 0.054; bias ~0.
+# Weight exponent of a hashed node (subtree size ** alpha); see docs/pruning_fidelity.md.
 HASH_MASS_ALPHA = 0.6
 
+# `for` and `while` are interchangeable ways to write the same loop (a common
+# clone rewrite), so they share one label; do-while keeps its own.
 CONTROL_EQUIVALENCE_RULE_INDICES = {
     KotlinParser.RULE_forExpression: "LOOP",
     KotlinParser.RULE_whileExpression: "LOOP",

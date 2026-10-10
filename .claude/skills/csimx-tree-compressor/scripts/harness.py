@@ -1,48 +1,18 @@
 #!/usr/bin/env python3
-"""
-Run csim's real Normalize -> PruneAndHash pipeline on one source snippet,
-optionally with candidate compression rules added IN MEMORY on top of the
-language's actual csimx/<lang>/utils.py config. This never writes to any
-file on disk -- run it once per candidate/strategy/snippet as a fresh
-subprocess (that's what SKILL.md's LOOP does), and the override only ever
-lives for that one process, so there's no risk of overrides leaking into
-the real config or into other measurements.
-
-This is the measurement tool behind the csimx-tree-compressor SKILL: it's
-how you find out whether adding a token/rule ID to a given dict/set
-actually shrinks the tree, and it's what you use to eyeball the resulting
-tree for the safety checks described in SKILL.md (collapse trap, hashing a
-body-wrapping rule, etc).
-
-Must run in an environment where csim is importable (`pip install -e .` in
-the csim repo).
+"""Run csimx's real Normalize -> PruneAndHash pipeline on one source file, optionally with
+candidate compression entries added IN MEMORY on top of the language's csimx/<lang>/utils.py.
+Nothing is written to disk; each run is its own process, so overrides never leak.
 
 Usage:
-    # Baseline (current config, no overrides) -- equivalent to `csim tree`:
-    python harness.py --lang cpp --file snippet.cpp --show-tree
+    python harness.py --lang cpp_14 --file snippet.cpp --show-tree             # baseline
+    python harness.py --lang cpp_14 --file snippet.cpp --add-excluded-rule 12   # EXCLUDED_RULE_TYPES
+    python harness.py --lang cpp_14 --file snippet.cpp --add-collapsed-rule 30  # COLLAPSED_RULE_INDICES
+    python harness.py --lang cpp_14 --file snippet.cpp --add-hashed-rule 7      # HASHED_RULE_INDICES
+    python harness.py --lang cpp_14 --file snippet.cpp --add-exclude-children '{"12": [1044]}'
 
-    # Test adding rule 12 to EXCLUDED_RULE_TYPES:
-    python harness.py --lang cpp --file snippet.cpp --add-excluded-rule 12
-
-    # Test adding rule 30 to COLLAPSED_RULE_INDICES:
-    python harness.py --lang cpp --file snippet.cpp --add-collapsed-rule 30
-
-    # Test adding rule 7 to HASHED_RULE_INDICES:
-    python harness.py --lang cpp --file snippet.cpp --add-hashed-rule 7
-
-    # Test pruning a specific child (e.g. a COLON token, offset by 1000)
-    # from a specific rule's children:
-    python harness.py --lang cpp --file snippet.cpp \\
-        --add-exclude-children '{"12": [1044]}'
-
-Any --add-* flag may be repeated or combined. With no --add-* flags at all,
-this reproduces the CURRENT baseline behavior of `csim tree` for that file
--- always measure baseline first, before any override, so the reduction
-percentage means something.
-
-Output: one line of JSON on stdout: {"file", "lang", "node_count"}.
-With --show-tree, the human-readable pruned tree is also printed, but to
-STDERR (so stdout stays clean, parseable JSON either way).
+--add-* flags may be repeated or combined. Measure the baseline first so the reduction means
+something. Output: one JSON line on stdout {"file", "lang", "node_count"}; --show-tree prints
+the pruned tree to stderr.
 """
 import argparse
 import importlib

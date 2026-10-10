@@ -1,8 +1,4 @@
 """Canonical operator forms for java_20 (see ../canonical_common.py).
-
-java_20 has one rule per precedence level, so the rule already says which operator family a node
-is. `<` and `>` (and `&&`, `||`, `&`, `|`, `^`) are excluded tokens, so those nodes have two
-children and swapping them is `a < b` == `b > a`; `+`, `*`, `==`, `!=` keep their token.
 """
 from ..canonical_common import CanonicalSpec, canonicalize_with
 from .Java20Lexer import Java20Lexer as L

@@ -1,9 +1,8 @@
 """Canonical operator forms for java_24 (see ../canonical_common.py).
 
-java_24 folds every binary operator into the single `expression` rule and excludes the tokens of
-`<`, `>`, `&&`, `||`, ... so a two-child `expression` is ambiguous (a call, a field access, a
-logical or relational operator) and is left alone. Only the operators that keep their token are
-unified: `+`, `*`, `==`, `!=` (operand order) and `>=` -> `<=`.
+Every binary operator is one `expression` rule here and `<`, `>`, `&&`, `||` are excluded
+tokens, so a two-child `expression` is ambiguous and left alone. Only `+`, `*`, `==`, `!=`
+and `>=` are unified.
 """
 from ..canonical_common import CanonicalSpec, canonicalize_with
 from .Java24Lexer import Java24Lexer as L

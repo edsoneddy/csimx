@@ -2,7 +2,7 @@
 
 Code Similarity (csimx) provide a module designed to detect similarities between source code files, even when obfuscation techniques have been applied. It is particularly useful for programming instructors and students who need to verify code originality.
 
-> **Origin.** csimx started from [csim](https://github.com/EdsonEddy/csim) 4.1.0 and keeps its structural comparison unchanged (same trees, same index). What it adds is a lexical stage that `group` can use to skip pairs of files that are too different. The version history of csim before this fork is in `CHANGELOG.md`; the documents in `docs/` were written for csim and still call the project csim.
+> **Origin.** csimx is a fork of [csim](https://github.com/EdsonEddy/csim) 4.1.0 that adds a lexical stage `group` can use to skip pairs that are too different. csim's history is in `CHANGELOG.md`; `docs/` still calls the project csim.
 
 ## Key Features
 
@@ -146,14 +146,14 @@ csimx group --path /path/to/directory --threshold 0.9 --strategy exhaustive --la
 
 #### Lexical prefilter (`group` only)
 
-csimx has two stages: the **structural** one (parse tree, tree edit distance) gives the index, and a **lexical** one compares the token sequences of two files with the Myers diff algorithm (`1 - d / (len_a + len_b)`, comments and layout dropped, names, numbers and strings generalized to their type). With `--prefilter` the lexical stage goes first and the structural one only runs on the pairs that are not too different in tokens, so the time of a big directory drops by a few times; files that take part in no such pair are not even parsed.
+The **structural** stage (parse tree, tree edit distance) gives the index. The **lexical** stage compares token sequences with the Myers diff (`1 - d / (len_a + len_b)`; comments and layout dropped, names, numbers and strings generalized). With `--prefilter` it runs first and the structural stage only compares pairs that are not too different in tokens, so big directories run several times faster; files in no such pair are not parsed.
 
 ```sh
 csimx group --path /path/to/directory --threshold 0.7 --lang python_3 --prefilter
 csimx group --path /path/to/directory --threshold 0.7 --lang python_3 --prefilter-margin 0.1
 ```
 
-The filter is lossy: a pair with the same structure and very different tokens (a moved block, reordered statements) can be skipped even though the structural stage would group it. The margin is how far under `--threshold` the lexical index may be; a larger margin loses fewer pairs and skips fewer. It pays off from a threshold of about 0.6 up. See the 0.1.0 entry of `CHANGELOG.md` for the numbers. `report` has no prefilter.
+The filter is lossy: a pair with the same structure and very different tokens (a moved block, reordered statements) can be skipped. The margin is how far under `--threshold` the lexical index may be; a larger margin skips fewer pairs and loses fewer. It pays off from a threshold of about 0.6 up (numbers in the 0.1.0 entry of `CHANGELOG.md`). `report` has no prefilter.
 
 #### Similarity Index Formulas
 
@@ -361,26 +361,18 @@ print(results)
 
 #### Estimating the time of `group`, and following its progress
 
-`group` compares every pair, so its time grows with the square of the number of files and with the
-square of the size of the pruned trees. `estimate_group` tells you before running it, from the real
-size of the trees (cost per pair ~ `a[lang] * (nodes_i * nodes_j) ** 1.2`, fitted on the seven
-languages):
+`group` compares every pair, so its time grows with the square of the number of files and of the tree sizes. `estimate_group` predicts it from the real size of the pruned trees:
 
 ```python
 from csimx import calibrate, estimate_group
 
-speed = calibrate()   # speed of this machine against the reference one (about 0.3 s, cached)
+speed = calibrate()   # speed of this machine against the reference one (~0.3 s, cached)
 est = estimate_group(file_names, file_contents, "java_24", threshold=0.7,
                      prefilter_margin=0.05, speed_factor=speed)
 print(est["estimated_seconds"], est["range_seconds"], est["structural_pairs"], est["pairs"])
 ```
 
-With a prefilter margin, `exact_prefilter=False` skips the lexical pass (which is not free for long
-files) and returns the upper bound. On 100 files per language the estimate was within -1% to +13% of
-the measured time (range: 0.7x to 1.5x of the point value); other machines and loaded CPUs will be
-worse, so refine it with the real progress while it runs. `group_by_exhaustive_search` takes
-`progress=callable(phase, done, total)` (phases `parse`, `lexical`, `structural`; it only reports and
-never changes the result).
+With a prefilter margin, `exact_prefilter=False` skips the lexical pass and returns the upper bound. On 100 files per language the estimate was within -1% to +13% of the measured time; other machines and loaded CPUs will be worse. `group_by_exhaustive_search` takes `progress=callable(phase, done, total)` (phases `parse`, `lexical`, `structural`).
 
 Or use the legacy Compare class for simple pairwise comparisons:
 

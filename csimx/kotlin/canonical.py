@@ -1,8 +1,4 @@
 """Canonical operator forms for kotlin (see ../canonical_common.py).
-
-`<`, `>`, `<=`, `>=`, `+`, `*`, `==` and `!=` keep their token; `&&` and `||` are excluded, so
-`conjunction` / `disjunction` nodes have two children and their operands are put in a fixed
-order. `a > b` is rewritten to `b < a` and `a >= b` to `b <= a`. Identity (`===`) is left alone.
 """
 from ..canonical_common import CanonicalSpec, canonicalize_with
 from .KotlinLexer import KotlinLexer as L

@@ -1,47 +1,20 @@
 #!/usr/bin/env python3
-"""
-Run csim's real Normalize -> PruneAndHash pipeline on one source snippet,
-optionally with candidate compression rules added IN MEMORY on top of the
-language's actual csimx/<lang>/utils.py config. This never writes to any
-file on disk.
-
-Shared, unchanged, with the sibling csimx-tree-compressor skill. In THIS
-skill (csimx-corpus-tuner) it's not the main measurement engine -- run_round.py
-does the heavy lifting across a whole sampled batch in one process -- this
-is for spot-checking a single real corpus file by hand: e.g. pulling up one
-file that run_round.py flagged as a "cross_pairs_newly_collapsed" example
-and eyeballing its tree with --show-tree/--show-raw to sanity-check the
-report before proposing anything to the user.
-
-Must run in an environment where csim is importable (`pip install -e .` in
-the csim repo).
+"""Run csimx's real Normalize -> PruneAndHash pipeline on one source file, optionally with
+candidate compression entries added IN MEMORY on top of the language's csimx/<lang>/utils.py.
+Nothing is written to disk; each run is its own process, so overrides never leak.
+Shared with csimx-tree-compressor; here it is for spot-checking one corpus file by hand
+(run_round.py does the batch measurements).
 
 Usage:
-    # Baseline (current config, no overrides) -- equivalent to `csim tree`:
-    python harness.py --lang python --file some_corpus_file.py --show-tree
+    python harness.py --lang cpp_14 --file corpus_file.cpp --show-tree             # baseline
+    python harness.py --lang cpp_14 --file corpus_file.cpp --add-excluded-rule 12   # EXCLUDED_RULE_TYPES
+    python harness.py --lang cpp_14 --file corpus_file.cpp --add-collapsed-rule 30  # COLLAPSED_RULE_INDICES
+    python harness.py --lang cpp_14 --file corpus_file.cpp --add-hashed-rule 7      # HASHED_RULE_INDICES
+    python harness.py --lang cpp_14 --file corpus_file.cpp --add-exclude-children '{"12": [1044]}'
 
-    # Test adding rule 12 to EXCLUDED_RULE_TYPES:
-    python harness.py --lang python --file some_corpus_file.py --add-excluded-rule 12
-
-    # Test adding rule 30 to COLLAPSED_RULE_INDICES:
-    python harness.py --lang python --file some_corpus_file.py --add-collapsed-rule 30
-
-    # Test adding rule 7 to HASHED_RULE_INDICES:
-    python harness.py --lang python --file some_corpus_file.py --add-hashed-rule 7
-
-    # Test pruning a specific child (e.g. a COLON token, offset by 1000)
-    # from a specific rule's children:
-    python harness.py --lang python --file some_corpus_file.py \\
-        --add-exclude-children '{"12": [1044]}'
-
-Any --add-* flag may be repeated or combined. With no --add-* flags at all,
-this reproduces the CURRENT baseline behavior of `csim tree` for that file
--- always measure baseline first, before any override, so the reduction
-percentage means something.
-
-Output: one line of JSON on stdout: {"file", "lang", "node_count"}.
-With --show-tree, the human-readable pruned tree is also printed, but to
-STDERR (so stdout stays clean, parseable JSON either way).
+--add-* flags may be repeated or combined. Measure the baseline first so the reduction means
+something. Output: one JSON line on stdout {"file", "lang", "node_count"}; --show-tree prints
+the pruned tree to stderr.
 """
 import argparse
 import importlib

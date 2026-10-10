@@ -283,20 +283,17 @@ nodes), sweeping `HASH_MASS_ALPHA`. MAE by seed (7 / 11 / 23):
 | c | .123 / .110 / .115 | - | .087 / .082 / .093 | .070 / .078 / .078 | .068 / .081 / .078 | 0.6 |
 | kotlin | .083 | .071 | .055 | **.054** | - | 0.6 |
 
-`java_24` already keeps a median of 25 nodes per file (8x), its unweighted bias is ~0, and any alpha
-leaves a negative bias, so weighting gains little there. Kotlin has no real corpus and its three seeds
-coincide (12 problems). Controlled clones and 150 random cross-problem pairs per language are in the
-CHANGELOG.
+`java_24` already keeps a median of 25 nodes per file and its unweighted bias is ~0, so weighting
+gains little there. Kotlin has no real corpus and its three seeds coincide (12 problems).
 
 ## Fidelity sweep of the pruning sets (csimx 0.2.0)
 
-`fidelity_sweep.py` (skill `csimx-batch-tuner`) turns the protocol above into a loop: for every
+`fidelity_sweep.py` (skill `csimx-batch-tuner`) runs the protocol above as a loop: for every
 token/rule present in at least 3 sampled files it measures adding it to `EXCLUDED_TOKEN_TYPES`,
-`EXCLUDED_RULE_TYPES`, `COLLAPSED_RULE_INDICES` or `HASHED_RULE_INDICES`, and removing every
-existing member; the score is the change in MAE, in mean node count and in the index of 80 random
-cross-problem pairs. A rule that prunes structure is rejected immediately (e.g. C `iterationStatement`:
--36% nodes, MAE +0.13, 26 extra false cross pairs). Recommended changes interact, so they are combined
-greedily and the set is validated on samples not used to choose. The shipped result: three small
-changes (see the CHANGELOG), and five proposals that did not generalize and were left out. The lesson
-is the same as in the alpha sweep: a single 8-problem sample overfits; the selection needs held-out
-seeds, and an empty recommendation list is a normal outcome for a config that was already swept.
+`EXCLUDED_RULE_TYPES`, `COLLAPSED_RULE_INDICES` or `HASHED_RULE_INDICES`, and removing every existing
+member, scoring the change in MAE, mean node count and the index of 80 random cross-problem pairs.
+A rule that prunes structure is rejected at once (C `iterationStatement`: -36% nodes, MAE +0.13,
+26 extra false cross pairs). Recommendations interact, so they are combined greedily and validated
+on samples not used to choose; three small changes shipped (see the CHANGELOG) and five proposals
+that did not generalize were left out. A single 8-problem sample overfits, so selection needs
+held-out seeds, and an empty recommendation list is a normal outcome.

@@ -8,59 +8,48 @@ the current F of the scsc repository is a different dataset, see `docs/pruning_f
 
 ## [0.3.0] - csimx
 
-A time estimate for `group` and a progress callback. The structural
-scores and `group` results are unchanged from 0.2.1.
+Time estimate for `group` and a progress callback. Scores and `group` results are unchanged.
 
-* `estimate_group(file_names, file_contents, lang, ...)` and `calibrate()` (`csimx/estimate.py`): time
-  estimate of `group` from the real size of the pruned trees. Per-pair cost
-  `a[lang] * (nodes_i * nodes_j) ** 1.2` seconds, shared exponent and one coefficient per language
-  (fitted on 990 pairs per language; Apple M4 Pro, one core). Checked on 100 real files per language
-  (same-problem pairs): estimate vs. measured -3%..+5% in six languages and +15% in `java_20`
-  with the fitted coefficient; end to end with `calibrate()` and the prefilter lexical time counted,
-  -1%..+13% in the five languages re-measured (python_3, java_24, cpp_14, c, kotlin). Returns a range
-  (0.7x to 1.5x). `calibrate()` times a fixed workload for the speed of the machine it runs on.
-* With a prefilter margin and `exact_prefilter=True` the result also carries `upper_bound_seconds` (the cost if the
-  prefilter skipped nothing), so the exact estimate and the cheap bound come from one parse.
-* `group_by_exhaustive_search(..., progress=callable(phase, done, total))`: progress report (phases
-  `parse`, `lexical`, `structural`); with a prefilter the lexical pass now finishes before the
-  structural one starts, so the number of structural pairs is known up front. Results unchanged.
+* `estimate_group(...)` and `calibrate()` (`csimx/estimate.py`): time estimate from the size of the
+  pruned trees. Cost per pair `a[lang] * (nodes_i * nodes_j) ** 1.2` seconds, one coefficient per
+  language (fitted on 990 pairs per language; Apple M4 Pro, one core). On 100 real files per language:
+  -3%..+5% in six languages and +15% in `java_20`; end to end with `calibrate()` and the lexical time,
+  -1%..+13%. The result carries a range (0.7x to 1.5x) and, with a prefilter margin,
+  `upper_bound_seconds` (the cost if the prefilter skipped nothing).
+* `group_by_exhaustive_search(..., progress=callable(phase, done, total))`, phases `parse`,
+  `lexical`, `structural`. With a prefilter the lexical pass now ends before the structural one
+  starts, so the number of structural pairs is known up front.
 
 ## [0.2.1] - csimx
 
-Patch release: the structural stage is unchanged, so **no structural score changes** from 0.2.0. Only
-the lexical stage (`--prefilter`, `Tokenize`) and the files `group` / `report` read change.
+Patch release; structural scores unchanged from 0.2.0.
 
-* Lexical stage: a string literal is now one token however Pygments splits it (quotes, pieces,
-  escapes, f-string fields, raw-string delimiters), so the token count no longer depends on the text
-  of the strings. Checked on the pairs of the 0.2.0 analysis: pairs flagged above the group threshold
-  that the prefilter would discard, margin 0.05, thresholds 0.7 and 0.8: unchanged or fewer in every
-  language (the one pair that `python_3_13` lost at 0.05 is kept; cpp_14 still loses 1 of 58 at 0.8,
-  none at margin 0.10); clones keep their lexical index and unrelated pairs rise by about 0.01.
+* Lexical stage: a string literal is one token however Pygments splits it, so the token count no
+  longer depends on the text of the strings. Pairs that the prefilter would lose (margin 0.05,
+  thresholds 0.7 and 0.8) are unchanged or fewer in every language.
 * `group` / `report` also read `.cc`, `.cxx`, `.hpp`, `.hh`, `.hxx` (cpp_14), `.h` (c) and `.kts`
   (kotlin).
-* Canonical operator forms, measured on real files: 60 files per language rewritten with swapped
-  comparisons and `+` / `*` operands (70% of the matches). Identical trees (off -> on): java_20
-  23 -> 58 of 60, java_24 22 -> 46, cpp_14 7 -> 56, c 4 -> 37, kotlin 0 -> 14 of 20 (python_3, which
-  already had them, 12 -> 51); mean similarity +0.01..+0.02; no pair below 0.9 gets worse.
-* Kotlin pruning changes (`IF`, `ELSE`, `FUN`), problem-disjoint check: undoing them on the even and
-  the odd half of the 12 problems costs +0.0026..+0.0086 MAE and raises the cross-problem similarity
-  on all four samples.
-* `fidelity_sweep.py`: `--problem-subset {even,odd}` and `--only` with explicit operations.
+* Canonical operator forms, on 60 real files per language rewritten with swapped comparisons and
+  `+` / `*` operands: identical trees (off -> on) java_20 23 -> 58 of 60, java_24 22 -> 46,
+  cpp_14 7 -> 56, c 4 -> 37, kotlin 0 -> 14 of 20; mean similarity +0.01..+0.02, no pair below 0.9
+  gets worse.
+* Kotlin pruning (`IF`, `ELSE`, `FUN`), problem-disjoint check: undoing them costs
+  +0.0026..+0.0086 MAE and raises cross-problem similarity.
+* `fidelity_sweep.py`: `--problem-subset {even,odd}` and `--only`.
 
 ## [0.2.0] - csimx
 
-The structural stage is no longer identical to csim 4.1.0: weighted hashes, canonical operator forms
-and a few config changes reach the other languages (see below), so **scores change** for `java_20`,
-`java_24`, `cpp_14`, `c` and `kotlin` (`python_3`, `python_3_13` keep the scores of 0.1.0). The
-lexical stage was checked on all seven languages, and the tuning skills moved into the repo.
+The structural stage is no longer identical to csim 4.1.0: weighted hashes, canonical operator
+forms and a few config changes reach other languages, so **scores change** for `java_20`,
+`java_24`, `cpp_14`, `c` and `kotlin` (`python_3` and `python_3_13` keep the scores of 0.1.0).
 
-### Pruning sweep of all seven languages (fidelity-scored), three small config changes
+### Fidelity-scored pruning sweep, three config changes
 
 `.claude/skills/csimx-batch-tuner/scripts/fidelity_sweep.py` measures every unclassified token and
-rule that occurs in a sample (and the removal of every existing entry) against the near-raw tree:
-tree size, MAE of the index and false similarity of cross-problem pairs (8 problems x 8 files per
-sample, seed 7). Recommendations were then combined greedily and **validated on two samples not used
-to choose (seeds 23 and 11)**; only changes that held on both were applied:
+rule (and the removal of every existing entry) against the near-raw tree: tree size, MAE of the
+index and false similarity of cross-problem pairs (8 problems x 8 files, seed 7). Recommendations
+were combined greedily and **validated on two other samples (seeds 23 and 11)**; only changes that
+held on both were applied:
 
 | language | change | MAE (s23 / s11) | nodes | clones >= 0.7 | cross mean |
 |---|---|---|---|---|---|
@@ -68,63 +57,49 @@ to choose (seeds 23 and 11)**; only changes that held on both were applied:
 | cpp_14 | `PlusPlus` no longer excluded; `expressionList` no longer collapsed | -.0033 / -.0063 | 0% | 35 -> 35 | .186 -> .175 |
 | kotlin | `IF`, `ELSE`, `FUN` excluded | -.0056 / -.0044 | -13% | 34 -> 34 | .393 -> .368 |
 
-Nothing to change in `c` (all 27 candidates rejected; the ones that prune structure raise the MAE by
-up to 0.24 and create up to 46 false cross-problem pairs). **Not applied** because they improved the
-chosen sample but not the held-out ones: `java_20` (`methodModifier`, `forUpdate` exclusions: MAE
-+.0035 / +.0050), `python_3` (`else_clause` collapse, `IF`/`ELSE` tokens: +.0063 / -.0005) and
-`python_3_13` (`named_expression`, `LPAR`/`RPAR`, `else_block`: +.0182 / +.0033). Kotlin's corpus has
-only 12 problems, so its held-out seeds are not independent. Scores change slightly for these three
-languages.
+Nothing to change in `c` (all 27 candidates rejected). Not applied because they did not hold on
+the held-out seeds: `java_20` (`methodModifier`, `forUpdate`), `python_3` (`else_clause`,
+`IF`/`ELSE`) and `python_3_13` (`named_expression`, `LPAR`/`RPAR`, `else_block`). Kotlin's corpus
+has only 12 problems, so its held-out seeds are not independent.
 
-Tooling: the three tuning skills now live in the repo (`.claude/skills/csimx-*`), cover all seven
-languages and share `scripts/langs.py`. An older measurement detail was corrected on the way:
-`Visitors.py` binds `COLLAPSED_RULE_INDICES` when it is imported, so the near-raw reference of the
-earlier tables (`docs/pruning_fidelity.md`, csimx 0.1.0 section) still collapsed `package`/`import`/
-array initializers; the sweep empties the sets in place. The comparisons between configs in those
-tables are unaffected (same reference for all of them); absolute MAE values are slightly low.
+The three tuning skills now live in the repo (`.claude/skills/csimx-*`), cover all seven languages
+and share `scripts/langs.py`. Correction: `Visitors.py` binds `COLLAPSED_RULE_INDICES` at import,
+so the near-raw reference of the 0.1.0 tables in `docs/pruning_fidelity.md` still collapsed
+`package`/`import`/array initializers; comparisons between configs are unaffected, absolute MAE
+values are slightly low.
 
-### Lexical stage: checked on all seven languages, two fixes
+### Lexical stage checked on all seven languages
 
-The lexical stage and `group --prefilter` were checked on `python_3`, `python_3_13`, `java_20`,
-`java_24`, `cpp_14`, `c` and `kotlin` (tokenizing ~29000 real files without errors, clones vs.
-unrelated pairs, 1440 same-problem pairs per language, `group` with and without the filter through
-the CLI). With margin 0.05 and threshold 0.7 the filter lost no pair that the structural stage
-flags, except 1 of 238 in `python_3_13` (structural 0.71, lexical 0.63; margin 0.10 loses none);
-the groups were identical in every language. The default margin is unchanged.
+About 29000 real files tokenized without errors; `group` with and without the filter gave identical
+groups in every language. With margin 0.05 and threshold 0.7 the filter lost 1 of 238 flagged pairs
+in `python_3_13` (margin 0.10 loses none). The default margin is unchanged.
 
-* Fixed: keyword subtypes (`Keyword.Type`, `Keyword.Declaration`, `Operator.Word`, ...) were
-  generalized to one id instead of being kept as written, so `int` equalled `double` and `and`
-  equalled `or`, against what is documented above. The effect on the measured pairs is cosmetic.
-* Fixed: a file that cannot be read as UTF-8 is now skipped by `group` / `report` (with the message
-  `read_file` already printed) instead of failing later, and later with a worse message under
-  `--prefilter`.
-* New tests for the stage in all seven languages; the wheel smoke test in CI now checks all seven.
+* Fixed: keyword subtypes (`Keyword.Type`, `Operator.Word`, ...) were generalized to one id, so
+  `int` equalled `double` and `and` equalled `or`.
+* Fixed: a file that is not UTF-8 is skipped by `group` / `report` instead of failing later.
+* New tests for the stage in all seven languages; the CI wheel smoke test checks all seven.
 
 ### Canonical operator forms for Java, C++, C and Kotlin
 
-The pass that `python_3` got in csim 4.1.0 now exists for `java_20`, `java_24`, `cpp_14`, `c` and
-`kotlin` (`CANONICAL_FORMS` in each `utils.py`, rules in `csimx/canonical_common.py` and a small
-`canonical.py` per language that only declares which grammar rules and tokens it applies to). It
-unifies `a + b` / `b + a`, `*`, `==`, `!=` (operand order), `a > b` / `b < a`, `a >= b` / `b <= a`
-and the operand order of `&&`, `||` and the bitwise operators whose token is not in the tree. Like
-the Python version it uses tree shape and token types only. `java_24` folds every operator into one
-`expression` rule and excludes `<`, `>`, `&&`, `||`, so there only `+`, `*`, `==`, `!=` and `>=`
-are unified. Not done (as in `python_3`): negation / De Morgan, `else { if }`, and inlining.
+The pass `python_3` got in csim 4.1.0 now exists for `java_20`, `java_24`, `cpp_14`, `c` and
+`kotlin` (`CANONICAL_FORMS` in each `utils.py`; rules in `csimx/canonical_common.py`, a small
+`canonical.py` per language). It unifies operand order of `+`, `*`, `==`, `!=`, `a > b` / `b < a`,
+`a >= b` / `b <= a`, and the operands of `&&`, `||` and the bitwise operators. Only tree shape and
+token types are used. `java_24` folds every operator into one `expression` rule, so only `+`, `*`,
+`==`, `!=` and `>=` are unified. Not done: negation / De Morgan, `else { if }`, inlining.
 
-Measured: rewritten pairs (`a + b * c` vs `c * b + a`, `>=` vs `<=`, `a > b + 1` vs `1 + b < a`)
-go from 0.94-0.97 to 1.00. The fidelity of the pruning does not move (MAE vs the near-raw tree, seeds
-7 / 11 / 23): java_20 .047 / .051 / .045 (same), java_24 .077 / .071 / .065 (same), cpp_14 .056 / .051 / .064 (+.001), c .070 / .078 /
-.078 (same), kotlin .054 (same); controlled clones and cross-problem false similarity are unchanged
-in every language. `CANONICAL_FORMS = False` restores the previous scores. Scores can change for
-programs that use these constructs.
+Rewritten pairs (`a + b * c` vs `c * b + a`, `>=` vs `<=`) go from 0.94-0.97 to 1.00; the MAE vs
+the near-raw tree does not move (java_20 .047 / .051 / .045, java_24 .077 / .071 / .065,
+cpp_14 .056 / .051 / .064, c .070 / .078 / .078, kotlin .054). `CANONICAL_FORMS = False` restores
+the previous scores.
 
 ### Weighted hashes for `java_20`, `cpp_14`, `c` and `kotlin`
 
-The weighted hashes that `python_3` got in csim 3.4.2 (a hashed node keeps the mass of the subtree it
-replaced, `(size + 1) ** HASH_MASS_ALPHA`, and substitutions between hashed nodes of the same rule are
-charged by label overlap) are now on for four more languages, with `HASH_MASS_ALPHA` chosen per
-language. Tree size and edit-distance time are unchanged. Mean absolute error of the index vs. the
-near-raw tree (3 sets of 12 problems, seeds 7 / 11 / 23, 23 not used to choose):
+The weighted hashes `python_3` got in csim 3.4.2 (a hashed node keeps the mass of the subtree it
+replaced, `(size + 1) ** HASH_MASS_ALPHA`; substitutions between hashed nodes of the same rule are
+charged by label overlap) are now on for four more languages, with `HASH_MASS_ALPHA` per language.
+Tree size and edit-distance time are unchanged. MAE vs the near-raw tree (seeds 7 / 11 / 23, 23 not
+used to choose):
 
 | language | alpha | MAE before | MAE now | controlled clones >= 0.7 | cross-problem >= 0.7 |
 |---|---|---|---|---|---|
@@ -133,44 +108,38 @@ near-raw tree (3 sets of 12 problems, seeds 7 / 11 / 23, 23 not used to choose):
 | c | 0.6 | .123 / .110 / .115 | .070 / .078 / .078 | 28 -> 33 | 0 -> 0 of 150 |
 | kotlin (synthetic) | 0.6 | .083 | .054 | 35 -> 34 | 15 -> 8 of 150 |
 
-`java_24` is left unweighted: alpha 0.25-0.6 moves the MAE by -0.007..+0.010 and adds a bias of -0.03 to
--0.07. Kotlin's corpus has only 12 problems, so all three seeds select the same set and there is no
-held-out check; read its numbers as indicative. Scores change for these languages.
+`java_24` is left unweighted: alpha 0.25-0.6 moves the MAE by -0.007..+0.010 and adds a bias of
+-0.03 to -0.07. Kotlin's three seeds select the same 12 problems, so read its numbers as indicative.
 
 ## [0.1.0] - csimx
 
-csimx is a fork of csim 4.1.0 (the structural stage, trees and index, is unchanged and gives the
-same scores) with a second, lexical stage. Everything below this entry is the history of csim,
-written when the project was still called csim.
+csimx is a fork of csim 4.1.0 (same structural stage, trees and scores) with a second, lexical
+stage. Everything below this entry is the history of csim, when it was still called csim.
 
 ### Lexical prefilter for `group` (opt-in)
 
-The lexical stage (`csimx/lexical/`) compares the token sequences of two files: Pygments tokens
-with comments and blanks dropped and every name, number and string generalized to its type
-(keywords, operators and punctuation kept as written), and the Myers (1986) O(ND) distance,
-`1 - d / (len_a + len_b)`. It works for the seven supported languages and never produces a
-reported index.
+The lexical stage (`csimx/lexical/`) compares token sequences: Pygments tokens with comments and
+blanks dropped and names, numbers and strings generalized to their type (keywords, operators and
+punctuation kept as written), and the Myers (1986) O(ND) distance, `1 - d / (len_a + len_b)`.
+It works for the seven languages and never produces a reported index.
 
-With `--prefilter` (or `--prefilter-margin X`, which also turns it on) `group` runs the lexical
-stage on every pair first and only compares structurally the pairs whose lexical index reaches
-`threshold - margin` (never below 0). A file that takes part in no such pair is not parsed. Two
-exits make the lexical stage cheap on the pairs it discards: a bound from the lengths (the best
-index two sequences of those lengths can have) and Myers stopped at the largest distance that
-still reaches the minimum. Without either option every pair is compared structurally.
+With `--prefilter` (or `--prefilter-margin X`, which turns it on) `group` runs the lexical stage on
+every pair first and compares structurally only the pairs whose lexical index reaches
+`threshold - margin` (never below 0). A file in no such pair is not parsed. The lexical stage is
+cheap on discarded pairs thanks to a length bound and Myers stopped at the largest distance that
+still reaches the minimum.
 
-* `--prefilter`: margin 0.05 (`PREFILTER_MARGIN`); `--prefilter-margin X`: margin X, from 0.0 to
-  0.30 (`MAX_PREFILTER_MARGIN`; above that the minimum falls under 0.4 at the usual threshold
-  0.7 and almost no pair is skipped). Only valid for `group`. A line on stderr says how many
-  pairs were skipped and how many files were parsed.
+* `--prefilter`: margin 0.05 (`PREFILTER_MARGIN`); `--prefilter-margin X`: 0.0 to 0.30
+  (`MAX_PREFILTER_MARGIN`). Only valid for `group`. A line on stderr reports skipped pairs and
+  parsed files.
 * `group_by_exhaustive_search(..., prefilter_margin=None, stats=None)`; `csimx.Tokenize`,
   `LexicalDistance`, `LexicalIndex`, `LexicalAtLeast`.
 * New dependency: `pygments>=2.20,<3`.
 
-**It is a lossy filter.** The lexical index is not an upper bound of the structural one: two
-files can have the same structure and quite different tokens (a moved block, reordered
-statements). Measured with csim 4.1.0's structural stage on the pairs of the scsc datasets A-F
-(4673 pairs, tokens of the raw text): pairs flagged above the group threshold `t` that the
-filter would have discarded, out of those flagged:
+**It is a lossy filter.** The lexical index is not an upper bound of the structural one: the same
+structure can have quite different tokens (a moved block, reordered statements). On the pairs of the
+scsc datasets A-F (4673 pairs, tokens of the raw text), pairs flagged above threshold `t` that the
+filter would discard, out of those flagged:
 
 | margin | t=0.5 | t=0.6 | t=0.7 | t=0.8 | t=0.9 |
 |---|---|---|---|---|---|
@@ -178,14 +147,10 @@ filter would have discarded, out of those flagged:
 | 0.05 | 3/681 | 2/647 | 1/605 | 0/540 | 2/476 |
 | 0.10 | 3/681 | 2/647 | 1/605 | 0/540 | 0/476 |
 
-and the share of all pairs it discards, with margin 0.05: 14% at t=0.5, 68% at t=0.6, 85% at
-t=0.7, 86% at t=0.8, 87% at t=0.9. At t=0.7 the one pair lost is a pair labelled not similar
-(B `submission99.py` / `submission100.py`, structural 0.73, lexical 0.22). `group` on A (63 files),
-F (60) and B (174) with t=0.7 gave the same groups in 3.4x, 4.6x and 4.2x less time with a lexical
-minimum of 0.6 (margin 0.1; measured with the inlining pass of a csim branch that this fork does
-not include, so the times are indicative). It pays off from `t` about 0.6 up. These numbers were
-measured on the datasets used to choose the margin, not on an unseen set: treat 0.05 as a
-starting point.
+With margin 0.05 it discards 14% of all pairs at t=0.5, 68% at 0.6, 85% at 0.7, 86% at 0.8 and 87%
+at 0.9. `group` on A (63 files), F (60) and B (174) with t=0.7 gave the same groups 3.4x, 4.6x and
+4.2x faster (margin 0.1; indicative). It pays off from `t` about 0.6 up. These numbers come from the
+datasets used to choose the margin: treat 0.05 as a starting point.
 
 # Changelog of csim (inherited)
 

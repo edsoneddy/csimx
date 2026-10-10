@@ -1,8 +1,4 @@
 """Canonical operator forms for c (see ../canonical_common.py).
-
-One rule per precedence level. `<`, `>`, `<=`, `>=`, `+`, `*`, `==` and `!=` keep their token;
-`&&`, `||`, `&`, `|` and `^` are excluded tokens, so those nodes have two children and their
-operands are simply put in a fixed order. `a > b` is rewritten to `b < a` and `a >= b` to `b <= a`.
 """
 from ..canonical_common import CanonicalSpec, canonicalize_with
 from .CLexer import CLexer as L

@@ -1,35 +1,28 @@
 #!/usr/bin/env python3
 """Resumable, parallel sweep of the pruning config of one csimx language, scored by FIDELITY.
 
-Every candidate change to `csimx/<lang>/utils.py` is measured on a real corpus with the protocol of
-docs/pruning_fidelity.md: the similarity index of the pruned trees against a near-raw reference
-(only trivia and identifiers dropped; no exclusion, collapsing, hashing or canonical forms), plus
-the tree size and the index of random cross-problem pairs (the collapse trap: different programs
-that start to look alike). Nothing is written to the repo; progress is checkpointed to a JSON
-state file after every candidate, so the sweep can be stopped and resumed.
+Each candidate change to csimx/<lang>/utils.py is measured on a real corpus with the protocol of
+docs/pruning_fidelity.md: index of the pruned trees against a near-raw reference, tree size, and
+the index of random cross-problem pairs (different programs that start to look alike). Nothing is
+written to the repo; progress is checkpointed to a JSON state file after every candidate.
 
-Candidates (only constructs that occur in at least --min-files sampled files):
-  add    token  -> EXCLUDED_TOKEN_TYPES             (strategy `token`)
+Candidates (constructs in at least --min-files sampled files):
+  add    token  -> EXCLUDED_TOKEN_TYPES
   add    rule   -> EXCLUDED_RULE_TYPES / COLLAPSED_RULE_INDICES / HASHED_RULE_INDICES
-                   (strategies `exclude`, `collapse`, `hash`)
-  remove every current member of those four sets      (does an existing entry cost fidelity?)
+  remove every current member of those four sets
 
 Modes:
   run       measure the pending candidates (default)
   report    markdown report of the state file
-  combine   greedy forward selection among the recommended/marginal changes on the sample of `run`:
-            add them one at a time (best MAE first, one strategy per rule) and keep a change only if
-            the combined MAE does not get worse; prints the accepted set (the combined effect of
-            changes is NOT the sum of their effects, so always run this before applying several)
-  validate  apply every recommended change at once and score baseline vs. combined on a fresh sample
-            (use a seed that was not used for `run`)
+  combine   greedy forward selection among recommended/marginal changes on the sample of `run`
+            (effects are not additive, so run it before applying several)
+  validate  apply every recommended change at once and score baseline vs. combined on a fresh
+            sample (use a seed not used for `run`)
 
-Usage:
+Usage (csimx must be importable; PYTHONPATH=<repo> works):
   python fidelity_sweep.py --lang java_20 --corpus ../jv-umsa-dataset/all_java --state java_20.json
   python fidelity_sweep.py --lang java_20 --state java_20.json --mode report
   python fidelity_sweep.py --lang java_20 --corpus ... --state java_20.json --mode validate --seed 23
-
-Run from an environment where csimx is importable (PYTHONPATH=<repo> works).
 """
 import argparse
 import copy

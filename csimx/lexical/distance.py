@@ -52,11 +52,7 @@ def LexicalBound(len_a, len_b):
 
 
 def LexicalAtLeast(seq_a, seq_b, minimum):
-    """The lexical index of the pair if it is at least `minimum`, else None.
-
-    Two cheap exits come first: the length bound, and Myers stopped at the largest distance
-    that still reaches `minimum`.
-    """
+    """The lexical index of the pair if it is at least `minimum`, else None."""
     len_a, len_b = len(seq_a), len(seq_b)
     if LexicalBound(len_a, len_b) < minimum:
         return None

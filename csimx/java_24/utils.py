@@ -154,10 +154,8 @@ EXCLUDED_TOKEN_TYPES = {
     # Statement keywords
     Java24Lexer.IF,
     Java24Lexer.ELSE,
-    # WHILE and FOR are deliberately NOT excluded (csimx-batch-tuner fidelity sweep, seed 7;
-    # held-out seeds 23/11): keeping them lowers the MAE vs the near-raw tree by 0.006-0.010 and
-    # the false similarity of unrelated programs, for ~4% more nodes. Loop equivalence
-    # (for == while) is done by CONTROL_EQUIVALENCE_RULE_INDICES, not by this token.
+    # WHILE and FOR stay visible (fidelity sweep); for == while is handled by
+    # CONTROL_EQUIVALENCE_RULE_INDICES.
     Java24Lexer.DO,
     Java24Lexer.SWITCH,
     Java24Lexer.SYNCHRONIZED,
@@ -289,12 +287,11 @@ STRUCTURAL_RULE_INDICES = {
     SYNTHETIC_LABELED_STMT,
 }
 
-# `for` and `while` are interchangeable ways to write the same loop (a common
-# clone rewrite), so they share one label; do-while keeps its own.
-# Unify equivalent operator forms (a + b / b + a, a >= b / b <= a, ...) before
-# pruning; see java_24/canonical.py.
+# Unify equivalent operator forms before pruning; see canonical.py.
 CANONICAL_FORMS = True
 
+# `for` and `while` are interchangeable ways to write the same loop (a common
+# clone rewrite), so they share one label; do-while keeps its own.
 CONTROL_EQUIVALENCE_RULE_INDICES = {
     SYNTHETIC_FOR_STMT: "LOOP",
     SYNTHETIC_WHILE_STMT: "LOOP",
@@ -321,9 +318,7 @@ AUG_ASSIGN_OPS = {
 EXCLUDED_RULE_TYPES = {
     Java24Parser.RULE_identifier,
     Java24Parser.RULE_typeIdentifier,
-    # Return/declared type: which type was written is not structure (the primitive-type
-    # keywords are excluded for the same reason). Fidelity sweep: -5% nodes, MAE -0.005,
-    # fewer false cross-problem pairs; held-out seeds 23/11 confirm.
+    # Return/declared type: which type was written is not structure.
     Java24Parser.RULE_typeTypeOrVoid,
     # Modifiers (`public`, `static`, `final`, ...): declaration boilerplate that
     # differs between equivalent programs and that java_20 folds into its hashed

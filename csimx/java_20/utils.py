@@ -196,17 +196,15 @@ STRUCTURAL_RULE_INDICES = {
     Java20Parser.RULE_ordinaryCompilationUnit,
 }
 
+# Unify equivalent operator forms before pruning; see canonical.py.
+CANONICAL_FORMS = True
+
+# Weight exponent of a hashed node (subtree size ** alpha); see docs/pruning_fidelity.md.
+HASH_MASS_ALPHA = 0.4
+
 # The four loop statements are interchangeable ways to write the same loop
 # (`for` <-> `while` rewrites are common clones), so they share one label.
 # do-while keeps its own: its body always runs once.
-# Unify equivalent operator forms (a + b / b + a, a >= b / b <= a, ...) before
-# pruning; see java_20/canonical.py.
-CANONICAL_FORMS = True
-
-# Exponent for the weight of a hashed node (its subtree size ** alpha) in the
-# tree edit distance, as in python_3; see docs/pruning_fidelity.md. MAE vs the near-raw tree on all_java (seeds 7/11/23, 23 held out) 0.075/0.067/0.063 -> 0.047/0.051/0.045; bias ~0.
-HASH_MASS_ALPHA = 0.4
-
 CONTROL_EQUIVALENCE_RULE_INDICES = {
     Java20Parser.RULE_basicForStatement: "LOOP",
     Java20Parser.RULE_enhancedForStatement: "LOOP",

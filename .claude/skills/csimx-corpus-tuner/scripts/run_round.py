@@ -1,42 +1,24 @@
 #!/usr/bin/env python3
-"""
-The measurement engine behind csimx-corpus-tuner. Takes one round's file
-sample (from sample_round.py), a list of candidate token/rule strategies to
-test, and optionally runs a leave-one-out regression check on the config
-that's already applied -- all in ONE process.
+"""Measurement engine of csimx-corpus-tuner. Takes one round's file sample (from
+sample_round.py) and a list of candidate token/rule strategies, and optionally runs a
+leave-one-out regression check of the config already applied, all in ONE process.
 
-Why one process instead of one harness.py subprocess per file per
-candidate (like the sibling csimx-tree-compressor skill does): here we're
-measuring hundreds of real files per round, times several candidates times
-several strategies each. Re-parsing every file with ANTLR for every single
-measurement would be the actual bottleneck, and it's unnecessary -- none of
-the five compression knobs affect the RAW ANTLR parse, only Normalize() and
-PruneAndHash() downstream of it. So this script parses each file with
-ANTLR exactly once, keeps the raw trees in memory for the rest of the run,
-and re-runs the (cheap) Normalize+PruneAndHash step under different
-candidate overrides.
-
-Isolation without subprocesses: at startup this script snapshots the
-language's real EXCLUDED_TOKEN_TYPES / EXCLUDED_RULE_TYPES /
-COLLAPSED_RULE_INDICES / HASHED_RULE_INDICES / EXCLUDE_CHILDRENS_FROM_RULE
-exactly as they are on disk right now (the "pristine" config) and NEVER
-mutates those objects in place. Every measurement builds a brand new
-set/dict from the pristine snapshot plus exactly one override, assigns it
-to the module attribute, measures, and moves on -- so there's no
-restore-after-each-test step that could leak state between candidates by
-accident. This script never writes anything to utils.py.
+Each file is parsed with ANTLR once and the raw trees are kept in memory: the compression knobs
+only affect Normalize() and PruneAndHash(), which are re-run per candidate. The real config sets
+are snapshotted at startup and never mutated; every measurement builds new sets from the snapshot
+plus one override. Nothing is written to utils.py.
 
 Usage:
-    python run_round.py --lang python --round-file round_3.json \\
+    python run_round.py --lang python_3 --round-file round_3.json \\
         --candidates candidates.json --regression-check --out round_3_results.json
 
-candidates.json shape:
+candidates.json:
 {
   "tokens": [{"id": 44, "name": "SOME_TOKEN"}],
   "rules": [{"id": 12, "name": "someRule", "strategies": ["excluded_rule", "collapsed_rule", "hashed_rule"]}],
   "exclude_children": [{"rule_id": 12, "rule_name": "someRule", "child_label": 1044, "child_name": "COLON"}]
 }
-"strategies" defaults to all three (excluded_rule, collapsed_rule, hashed_rule) if omitted for a rule.
+"strategies" defaults to all three.
 """
 import argparse
 import copy
