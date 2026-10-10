@@ -8,7 +8,7 @@ the current F of the scsc repository is a different dataset, see `docs/pruning_f
 
 ## [0.3.0] - csimx
 
-New API for services that run `group` for others: a time estimate and a progress callback. The structural
+A time estimate for `group` and a progress callback. The structural
 scores and `group` results are unchanged from 0.2.1.
 
 * `estimate_group(file_names, file_contents, lang, ...)` and `calibrate()` (`csimx/estimate.py`): time
@@ -20,11 +20,10 @@ scores and `group` results are unchanged from 0.2.1.
   -1%..+13% in the five languages re-measured (python_3, java_24, cpp_14, c, kotlin). Returns a range
   (0.7x to 1.5x). `calibrate()` times a fixed workload for the speed of the machine it runs on.
 * With a prefilter margin and `exact_prefilter=True` the result also carries `upper_bound_seconds` (the cost if the
-  prefilter skipped nothing), so a service can show the exact estimate and the cheap bound from one parse.
+  prefilter skipped nothing), so the exact estimate and the cheap bound come from one parse.
 * `group_by_exhaustive_search(..., progress=callable(phase, done, total))`: progress report (phases
   `parse`, `lexical`, `structural`); with a prefilter the lexical pass now finishes before the
   structural one starts, so the number of structural pairs is known up front. Results unchanged.
-  There is deliberately no cancel hook: stop a long run by terminating the process that runs it.
 
 ## [0.2.1] - csimx
 

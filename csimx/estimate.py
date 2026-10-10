@@ -9,7 +9,7 @@ workload and gives the speed of this machine relative to the one the coefficient
 
 It is an estimate: on the machine of the fit it was within -3%..+5% of the measured time for 100
 files in six languages and +15% for java_20; other machines, a loaded CPU and unusual files will be
-worse, which is why the result carries a range. A running job should refine it with its own progress.
+worse, which is why the result carries a range.
 """
 import itertools
 import statistics

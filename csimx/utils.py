@@ -730,8 +730,7 @@ def group_by_exhaustive_search(
     file is parsed first when there is no prefilter), "lexical" (the token comparison of every
     pair, prefilter only) and "structural" (the pairs that are compared structurally; with the
     prefilter their total is known once "lexical" is over). The callback only reports: it does
-    not change the result. To stop a running `group`, run it in its own process and terminate that
-    process; csimx has no cancellation of its own.
+    not change the result.
     """
 
     file_number = len(file_names)

@@ -380,8 +380,7 @@ files) and returns the upper bound. On 100 files per language the estimate was w
 the measured time (range: 0.7x to 1.5x of the point value); other machines and loaded CPUs will be
 worse, so refine it with the real progress while it runs. `group_by_exhaustive_search` takes
 `progress=callable(phase, done, total)` (phases `parse`, `lexical`, `structural`; it only reports and
-never changes the result). csimx has no cancellation of its own: to stop a long `group`, run it in a
-separate process and terminate it.
+never changes the result).
 
 Or use the legacy Compare class for simple pairwise comparisons:
 
