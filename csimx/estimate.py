@@ -121,7 +121,8 @@ def estimate_group(
     Returns a dict: files, pairs, structural_pairs (pairs left after the prefilter), skipped,
     nodes {total, mean, median, max}, parse_seconds and lexical_seconds (measured here),
     prefilter_evaluated, estimated_seconds (point value, parsing and lexical stage included),
-    range_seconds [low, high], speed_factor.
+    upper_bound_seconds (the same files with a prefilter that skips nothing; equal to the estimate
+    when the prefilter is off or not evaluated), range_seconds [low, high], speed_factor.
     """
     from .utils import MAX_PREFILTER_MARGIN, count_tree_nodes, preprocess_code
 
@@ -163,6 +164,12 @@ def estimate_group(
     structural = sum(pair_cost(nodes[i], nodes[j], lang) for i, j in pairs) * speed_factor
     fixed = parse_seconds + lexical_seconds  # measured on this machine, not scaled
     point = structural + fixed
+    if prefilter_margin is not None and exact_prefilter:
+        # what the same files would take if the prefilter skipped nothing (the cheap estimate)
+        every_pair = sum(pair_cost(nodes[i], nodes[j], lang) for i, j in itertools.combinations(range(n), 2))
+        upper_bound = every_pair * speed_factor + fixed
+    else:
+        upper_bound = point
     return {
         "files": n,
         "pairs": total_pairs,
@@ -178,6 +185,7 @@ def estimate_group(
         "lexical_seconds": round(lexical_seconds, 4),
         "prefilter_evaluated": prefilter_margin is not None and exact_prefilter,
         "estimated_seconds": round(point, 4),
+        "upper_bound_seconds": round(upper_bound, 4),
         "range_seconds": [
             round(structural * RANGE_LOW + fixed, 4),
             round(structural * RANGE_HIGH + fixed, 4),

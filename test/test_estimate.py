@@ -70,3 +70,16 @@ def test_estimate_rejects_a_bad_margin_and_calibrate_is_positive():
     with pytest.raises(ValueError):
         estimate_group(["a"], ["x = 1"], "python_3", prefilter_margin=0.9)
     assert calibrate() > 0
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_exact_prefilter_estimate_never_exceeds_the_upper_bound(lang):
+    names, contents = inputs(lang)
+    fast = estimate_group(names, contents, lang, prefilter_margin=0.05, exact_prefilter=False)
+    exact = estimate_group(names, contents, lang, prefilter_margin=0.05)
+    assert fast["upper_bound_seconds"] == fast["estimated_seconds"] and not fast["prefilter_evaluated"]
+    assert exact["prefilter_evaluated"]
+    structural_exact = exact["estimated_seconds"] - exact["parse_seconds"] - exact["lexical_seconds"]
+    structural_bound = exact["upper_bound_seconds"] - exact["parse_seconds"] - exact["lexical_seconds"]
+    assert structural_exact <= structural_bound + 1e-4
+    assert exact["structural_pairs"] <= fast["structural_pairs"] == fast["pairs"]

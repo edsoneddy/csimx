@@ -19,6 +19,8 @@ scores and `group` results are unchanged from 0.2.1.
   with the fitted coefficient; end to end with `calibrate()` and the prefilter lexical time counted,
   -1%..+13% in the five languages re-measured (python_3, java_24, cpp_14, c, kotlin). Returns a range
   (0.7x to 1.5x). `calibrate()` times a fixed workload for the speed of the machine it runs on.
+* With a prefilter margin and `exact_prefilter=True` the result also carries `upper_bound_seconds` (the cost if the
+  prefilter skipped nothing), so a service can show the exact estimate and the cheap bound from one parse.
 * `group_by_exhaustive_search(..., progress=callable(phase, done, total))`: progress report (phases
   `parse`, `lexical`, `structural`); with a prefilter the lexical pass now finishes before the
   structural one starts, so the number of structural pairs is known up front. Results unchanged.
