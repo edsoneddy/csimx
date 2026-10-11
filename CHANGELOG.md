@@ -6,6 +6,25 @@ so they summarise each line rather than list every change.
 Note: "dataset F" in the 3.4.2 to 4.0.1 entries is the *first* F (Faidhi ladders, since retired);
 the current F of the scsc repository is a different dataset, see `docs/pruning_fidelity.md`.
 
+## [Unreleased] - csimx
+
+`group` computes far fewer tree edit distances; the groups are identical to 0.3.0 (checked on 18
+dataset x threshold configurations). Details and discarded ideas: `docs/GROUPING_SPEEDUP.md`.
+
+* Lower bounds of the TED (`csimx/processing/lower_bounds.py`): size, label histogram and
+  weighted edit distance of the pre/postorder label sequences. Pairs that provably cannot exceed the
+  threshold are not compared. On: `--no-bounds` / `bounds=False` turns it off.
+* `--skip-connected` / `skip_connected=True`: do not compare files already in one group. Off by
+  default. 100 files, threshold 0.7, single core: cpp_14 37.7 -> 2.8 s, java_20 39.2 -> 8.5,
+  c 36.6 -> 0.9, kotlin 6.5 -> 1.8, python 4.9 -> 1.2; at 0.3 cpp_14 39.3 -> 4.5. Peak memory unchanged.
+* **Average Similarity changes**: it is the mean of the maximum spanning tree of the group's links
+  (it was the index of the last positive pair of each member, which depended on file order).
+  The groups and their members are not affected.
+* `estimate_group(..., bounds=True, index_formula=None)` runs the bound pass; new keys
+  `bound_skipped`, `bound_seconds`. Error vs the real run: -25 %..+20 % (it overestimated 10-40x).
+* `group` prints the number of structural comparisons and the time of the bounds and the TED to
+  stderr.
+
 ## [0.3.0] - csimx
 
 Time estimate for `group` and a progress callback. Scores and `group` results are unchanged.

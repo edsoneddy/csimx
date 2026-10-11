@@ -103,6 +103,8 @@ def estimate_group(
     prefilter_margin=None,
     speed_factor=1.0,
     exact_prefilter=True,
+    bounds=True,
+    index_formula=None,
 ):
     """Estimate the time of `group_by_exhaustive_search` without running it.
 
@@ -110,12 +112,21 @@ def estimate_group(
     lexical stage to know which pairs remain (slow for long files); `exact_prefilter=False`
     skips that and returns the upper bound (every pair). `speed_factor` comes from `calibrate()`.
 
-    Returns a dict: files, pairs, structural_pairs, skipped, nodes {total, mean, median, max},
-    parse_seconds, lexical_seconds, prefilter_evaluated, estimated_seconds,
-    upper_bound_seconds (cost if the prefilter skipped nothing), range_seconds [low, high],
-    speed_factor.
+    With `bounds` (what `group` does by default) it also runs the lower-bound pass of `group`
+    (processing.lower_bounds) on the parsed trees, which is cheap, and charges the structural cost
+    only to the pairs that survive it; `index_formula` is the one of the index (default: legacy).
+    `group`'s `skip_connected` is not modelled: it only makes the run faster.
+
+    Returns a dict: files, pairs, structural_pairs, skipped, bound_skipped, nodes {total, mean,
+    median, max}, parse_seconds, lexical_seconds, bound_seconds, prefilter_evaluated,
+    estimated_seconds, upper_bound_seconds (cost if neither the prefilter nor the bounds skipped
+    anything), range_seconds [low, high], speed_factor.
     """
+    from .processing.distance_metrics import DEFAULT_INDEX_FORMULA
     from .utils import MAX_PREFILTER_MARGIN, count_tree_nodes, preprocess_code
+
+    if index_formula is None:
+        index_formula = DEFAULT_INDEX_FORMULA
 
     if lang not in SECONDS_PER_UNIT:
         raise ValueError(f"No time model for language: {lang}")
@@ -123,8 +134,11 @@ def estimate_group(
     n = len(file_names)
     t0 = time.perf_counter()
     nodes = []
+    processed = []
     for name, content in zip(file_names, file_contents):
-        nodes.append(count_tree_nodes(preprocess_code(name, content, lang)[0]))
+        tree, mass = preprocess_code(name, content, lang)
+        nodes.append(count_tree_nodes(tree))
+        processed.append((tree, mass))
     parse_seconds = time.perf_counter() - t0
 
     total_pairs = n * (n - 1) // 2
@@ -152,12 +166,30 @@ def estimate_group(
         lexical_seconds = time.perf_counter() - t1
 
     pairs = list(pairs)
+    unbounded_pairs = pairs
+    bound_seconds = 0.0
+    bound_skipped = 0
+    if bounds:
+        from .processing.distance_metrics import SimilarityIndex
+        from .processing.lower_bounds import CanReachThreshold, LabelTable, TreeProfile
+
+        t2 = time.perf_counter()
+        table = LabelTable()
+        profiles = [TreeProfile(tree, mass, table) for tree, mass in processed]
+        reachable = [
+            (i, j)
+            for i, j in pairs
+            if CanReachThreshold(profiles[i], profiles[j], threshold, index_formula, SimilarityIndex, table)
+        ]
+        bound_seconds = time.perf_counter() - t2
+        bound_skipped = len(pairs) - len(reachable)
+        pairs = reachable
     structural = sum(pair_cost(nodes[i], nodes[j], lang) for i, j in pairs) * speed_factor
-    fixed = parse_seconds + lexical_seconds  # measured on this machine, not scaled
+    fixed = parse_seconds + lexical_seconds + bound_seconds  # measured on this machine, not scaled
     point = structural + fixed
-    if prefilter_margin is not None and exact_prefilter:
+    if bounds or (prefilter_margin is not None and exact_prefilter):
         every_pair = sum(pair_cost(nodes[i], nodes[j], lang) for i, j in itertools.combinations(range(n), 2))
-        upper_bound = every_pair * speed_factor + fixed
+        upper_bound = every_pair * speed_factor + parse_seconds + lexical_seconds
     else:
         upper_bound = point
     return {
@@ -165,6 +197,7 @@ def estimate_group(
         "pairs": total_pairs,
         "structural_pairs": len(pairs),
         "skipped": skipped,
+        "bound_skipped": bound_skipped,
         "nodes": {
             "total": sum(nodes),
             "mean": round(statistics.mean(nodes), 1) if nodes else 0,
@@ -173,6 +206,7 @@ def estimate_group(
         },
         "parse_seconds": round(parse_seconds, 4),
         "lexical_seconds": round(lexical_seconds, 4),
+        "bound_seconds": round(bound_seconds, 4),
         "prefilter_evaluated": prefilter_margin is not None and exact_prefilter,
         "estimated_seconds": round(point, 4),
         "upper_bound_seconds": round(upper_bound, 4),

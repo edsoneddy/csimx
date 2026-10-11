@@ -64,3 +64,10 @@ csim group --path /path/to/files --threshold 0.8
 
 - [Parse Tree (Wikipedia)](https://en.wikipedia.org/wiki/Parse_tree)
 - [Tree Edit Distance (Wikipedia)](https://en.wikipedia.org/wiki/Tree_edit_distance)
+
+## Avoiding obvious comparisons
+
+The strategy still visits every pair, but `group` does not compute the tree edit distance of all of them:
+lower bounds skip pairs that cannot exceed the threshold and `--skip-connected` skips pairs already in
+one group. The groups are the same. See [GROUPING_SPEEDUP.md](GROUPING_SPEEDUP.md) for the
+measurements and the ideas that were discarded.

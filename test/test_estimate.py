@@ -43,7 +43,8 @@ def test_estimate_counts_the_pairs_that_group_compares(lang):
     est = estimate_group(names, contents, lang, threshold=0.7, prefilter_margin=0.05)
     assert est["pairs"] == stats["pairs"] == 6
     assert est["skipped"] == stats["skipped"]
-    assert est["structural_pairs"] == stats["pairs"] - stats["skipped"]
+    assert est["structural_pairs"] == stats["compared"]
+    assert est["bound_skipped"] == stats["bound_skipped"]
     assert est["files"] == 4 and est["nodes"]["max"] >= est["nodes"]["median"] > 0
     low, high = est["range_seconds"]
     assert 0 < low <= est["estimated_seconds"] <= high
@@ -53,8 +54,8 @@ def test_estimate_without_prefilter_compares_every_pair_and_scales_with_speed():
     a, b, c = SAMPLES["python_3"]
     names = [str(i) for i in range(18)]
     contents = [(a, b, c)[i % 3] + "\n" * i for i in range(18)]
-    one = estimate_group(names, contents, "python_3")
-    slow = estimate_group(names, contents, "python_3", speed_factor=4.0)
+    one = estimate_group(names, contents, "python_3", bounds=False)
+    slow = estimate_group(names, contents, "python_3", speed_factor=4.0, bounds=False)
     assert one["structural_pairs"] == one["pairs"] and one["skipped"] == 0
     structural_one = one["estimated_seconds"] - one["parse_seconds"]
     structural_slow = slow["estimated_seconds"] - slow["parse_seconds"]
@@ -75,11 +76,21 @@ def test_estimate_rejects_a_bad_margin_and_calibrate_is_positive():
 @pytest.mark.parametrize("lang", LANGS)
 def test_exact_prefilter_estimate_never_exceeds_the_upper_bound(lang):
     names, contents = inputs(lang)
-    fast = estimate_group(names, contents, lang, prefilter_margin=0.05, exact_prefilter=False)
-    exact = estimate_group(names, contents, lang, prefilter_margin=0.05)
+    fast = estimate_group(names, contents, lang, prefilter_margin=0.05, exact_prefilter=False, bounds=False)
+    exact = estimate_group(names, contents, lang, prefilter_margin=0.05, bounds=False)
     assert fast["upper_bound_seconds"] == fast["estimated_seconds"] and not fast["prefilter_evaluated"]
     assert exact["prefilter_evaluated"]
     structural_exact = exact["estimated_seconds"] - exact["parse_seconds"] - exact["lexical_seconds"]
     structural_bound = exact["upper_bound_seconds"] - exact["parse_seconds"] - exact["lexical_seconds"]
     assert structural_exact <= structural_bound + 1e-4
     assert exact["structural_pairs"] <= fast["structural_pairs"] == fast["pairs"]
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_estimate_with_bounds_never_exceeds_the_upper_bound(lang):
+    names, contents = inputs(lang)
+    est = estimate_group(names, contents, lang)
+    assert est["structural_pairs"] + est["bound_skipped"] == est["pairs"] - est["skipped"]
+    assert est["estimated_seconds"] <= est["upper_bound_seconds"] + est["bound_seconds"] + 1e-6
+    off = estimate_group(names, contents, lang, bounds=False)
+    assert off["structural_pairs"] == off["pairs"] and off["bound_skipped"] == 0

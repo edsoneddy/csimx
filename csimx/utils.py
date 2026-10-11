@@ -1,4 +1,5 @@
 import argparse
+import time
 from pathlib import Path
 import os
 from .DataStructures import UFDS as UnionFind
@@ -653,7 +654,28 @@ def report_pairwise_similarity(
     return "\n".join(results)
 
 
+def spanning_averages(file_number, links):
+    """Mean index of the maximum spanning tree of each group (Kruskal, ties by i, j).
+
+    `links` are the (index, i, j) pairs above the threshold. Returns ({root: mean}, the UnionFind of
+    the trees) so that a group is looked up by `tree.find(member)`.
+    """
+    tree = UnionFind(file_number)
+    total, count = {}, {}
+    kept = []
+    for index, i, j in sorted(links, key=lambda link: (-link[0], link[1], link[2])):
+        if tree.find(i) != tree.find(j):
+            tree.union(i, j)
+            kept.append((index, i))
+    for index, i in kept:
+        root = tree.find(i)
+        total[root] = total.get(root, 0.0) + index
+        count[root] = count.get(root, 0) + 1
+    return {root: total[root] / count[root] for root in total}, tree
+
+
 def get_output_by_group(file_names, groups, similarity_indices, threshold, printable_output=True):
+    """`similarity_indices[f]` holds the group average at the first file `f` of each group."""
     result = []
     similarity_groups = []
     similarity_groups_avg = []
@@ -665,9 +687,7 @@ def get_output_by_group(file_names, groups, similarity_indices, threshold, print
     groups_cnt = 1
     for file_group in groups:
         if len(file_group) > 1:
-            avg_similarity = sum(
-                similarity_indices[file] for file in file_group[1:]
-            ) / (len(file_group) - 1)
+            avg_similarity = similarity_indices[file_group[0]]
             result.append(
                 f"Group {groups_cnt} (Average Similarity: {avg_similarity:.2f}):"
             )
@@ -715,6 +735,8 @@ def group_by_exhaustive_search(
     prefilter_margin=None,
     stats=None,
     progress=None,
+    bounds=True,
+    skip_connected=False,
 ):
     """Group files whose similarity index is above `threshold`.
 
@@ -728,6 +750,11 @@ def group_by_exhaustive_search(
 
     `progress(phase, done, total)`, if given, reports the work as it advances. Phases: "parse"
     (no prefilter), "lexical" (prefilter only) and "structural". It does not change the result.
+
+    `bounds` skips the pairs that lower bounds of the TED (processing.lower_bounds) prove cannot
+    exceed `threshold`; the groups do not change. `skip_connected` also skips pairs already in one
+    group; the groups do not change either, but the group average (spanning_averages) is taken
+    from fewer links and can change. See docs/GROUPING_SPEEDUP.md.
     """
 
     file_number = len(file_names)
@@ -760,8 +787,24 @@ def group_by_exhaustive_search(
             proccesed_files[idx] = preprocess_code(file_names[idx], file_contents[idx], lang)
         return proccesed_files[idx]
 
-    similarity_indices = [0.00] * file_number
+    links = []
     skipped = 0
+    bound_skipped = 0
+    connected_skipped = 0
+    bound_seconds = ted_seconds = 0.0
+
+    if bounds:
+        from .processing.distance_metrics import SimilarityIndex
+        from .processing.lower_bounds import CanReachThreshold, LabelTable, TreeProfile
+
+        label_table = LabelTable()
+        profiles = [None] * file_number
+
+        def profile(idx):
+            if profiles[idx] is None:
+                tree, mass = structural(idx)
+                profiles[idx] = TreeProfile(tree, mass, label_table)
+            return profiles[idx]
 
     if prefilter:
         total_pairs = file_number * (file_number - 1) // 2
@@ -781,12 +824,28 @@ def group_by_exhaustive_search(
 
     report("structural", 0, len(pending))
     for done, (i, j) in enumerate(pending, 1):
+        if skip_connected and grouper.is_same_set(i, j):
+            connected_skipped += 1
+            report("structural", done, len(pending))
+            continue
+        if bounds:
+            started = time.perf_counter()
+            reachable = CanReachThreshold(
+                profile(i), profile(j), threshold, index_formula, SimilarityIndex, label_table
+            )
+            bound_seconds += time.perf_counter() - started
+            if not reachable:
+                bound_skipped += 1
+                report("structural", done, len(pending))
+                continue
+        started = time.perf_counter()
         similarity_index = get_similarity_coefficient(
             structural(i), structural(j), ted_algorithm, index_formula
         )
+        ted_seconds += time.perf_counter() - started
         if similarity_index > threshold:
             grouper.union(i, j)
-            similarity_indices[j] = similarity_index
+            links.append((similarity_index, i, j))
         report("structural", done, len(pending))
 
     if stats is not None:
@@ -795,6 +854,11 @@ def group_by_exhaustive_search(
             skipped=skipped,
             parsed=sum(p is not None for p in proccesed_files),
             files=file_number,
+            bound_skipped=bound_skipped,
+            connected_skipped=connected_skipped,
+            compared=len(pending) - bound_skipped - connected_skipped,
+            bound_seconds=bound_seconds,
+            ted_seconds=ted_seconds,
         )
 
     groups = {}
@@ -806,5 +870,9 @@ def group_by_exhaustive_search(
         groups[root].append(i)
 
     groups = list(groups.values())
+    averages, tree = spanning_averages(file_number, links)
+    similarity_indices = [0.0] * file_number
+    for group in groups:
+        similarity_indices[group[0]] = averages.get(tree.find(group[0]), 0.0)
 
     return get_output_by_group(file_names, groups, similarity_indices, threshold, printable_output)

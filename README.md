@@ -138,6 +138,8 @@ csimx group --path /path/to/directory --threshold 0.8 --strategy exhaustive
 - `--index, -ix`: Similarity index formula (default: `legacy`). Options: `legacy`, `ratio`, `metric`
 - `--prefilter`: Compare the tokens of each pair first and run the structural comparison only on the pairs whose lexical index reaches `--threshold` minus 0.05 (see below). Off by default.
 - `--prefilter-margin X`: Same, with margin `X` (0.0 to 0.30); it turns the prefilter on by itself.
+- `--skip-connected`: Do not compare files that are already in the same group. The groups are the same and it is much faster at low thresholds; only the Average Similarity can change (see below). Off by default.
+- `--no-bounds`: Turn off the lower-bound pass (same groups, slower). For measuring.
 
 **Complete example:**
 ```sh
@@ -154,6 +156,17 @@ csimx group --path /path/to/directory --threshold 0.7 --lang python_3 --prefilte
 ```
 
 The filter is lossy: a pair with the same structure and very different tokens (a moved block, reordered statements) can be skipped. The margin is how far under `--threshold` the lexical index may be; a larger margin skips fewer pairs and loses fewer. It pays off from a threshold of about 0.6 up (numbers in the 0.1.0 entry of `CHANGELOG.md`). `report` has no prefilter.
+
+#### Skipped comparisons (`group` only)
+
+Two exact speedups, neither changes the groups:
+
+- **Lower bounds** (always on): sizes, label counts and the edit distance of the traversal sequences prove that many pairs cannot exceed the threshold, so their tree edit distance is never computed. Wins at high thresholds.
+- **`--skip-connected`**: a pair whose files are already in one group cannot change the result. Wins at low thresholds.
+
+On 100 files per language at threshold 0.7: cpp 37.7 s → 2.8 s, java 39.2 → 8.5, c 36.6 → 0.9, kotlin 6.5 → 1.8, python 4.9 → 1.2 (single core; memory unchanged). Measurements, the average and what did not work: [docs/GROUPING_SPEEDUP.md](docs/GROUPING_SPEEDUP.md).
+
+**Average Similarity** is the mean index of the strongest links (a maximum spanning tree) of the group. It is informative: what the threshold guarantees is that every member is linked to the group by a pair above it. With `--skip-connected` fewer links are known, so the value can differ by a few hundredths (up to ~0.25 at low thresholds).
 
 #### Similarity Index Formulas
 
@@ -372,7 +385,7 @@ est = estimate_group(file_names, file_contents, "java_24", threshold=0.7,
 print(est["estimated_seconds"], est["range_seconds"], est["structural_pairs"], est["pairs"])
 ```
 
-With a prefilter margin, `exact_prefilter=False` skips the lexical pass and returns the upper bound. On 100 files per language the estimate was within -1% to +13% of the measured time; other machines and loaded CPUs will be worse. `group_by_exhaustive_search` takes `progress=callable(phase, done, total)` (phases `parse`, `lexical`, `structural`).
+The estimate runs the lower-bound pass of `group` (`bounds=True`, the default), so it prices only the pairs that reach the tree edit distance (`bound_skipped` counts the others); `group`'s `skip_connected` is not modelled and only makes the run faster. With a prefilter margin, `exact_prefilter=False` skips the lexical pass and returns the upper bound. On 100 files per language the estimate was within -25% to +20% of the time measured with the bounds (before the bounds: -1% to +13%); other machines and loaded CPUs will be worse. `group_by_exhaustive_search` takes `progress=callable(phase, done, total)` (phases `parse`, `lexical`, `structural`).
 
 Or use the legacy Compare class for simple pairwise comparisons:
 
@@ -399,6 +412,7 @@ nodes_before, nodes_after = count_nodes("example.py", code, lang="python_3_13")
 
 - [Getting Started Guide](GETTING_STARTED.md) - Quick tutorial for new users
 - [Search Strategies Guide](docs/STRATEGIES.md) - Detailed explanation of available search strategies
+- [Grouping speedups](docs/GROUPING_SPEEDUP.md) - Lower bounds, skip-connected, measurements and discarded ideas
 - [ANTLR Parser Generation](grammars/parser_gen_guide.md) - For grammar customization
 
 ## ANTLR4 Installation and Parser/Lexer Generation

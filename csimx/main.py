@@ -186,6 +186,18 @@ def main():
         "of about 0.6 up; below that it skips few pairs.",
     )
     parser.add_argument(
+        "--no-bounds",
+        action="store_true",
+        help="group only: do not skip the pairs that lower bounds of the tree edit distance "
+        "prove are below --threshold (same groups, slower).",
+    )
+    parser.add_argument(
+        "--skip-connected",
+        action="store_true",
+        help="group only: do not compare files that are already in the same group. The groups "
+        "are the same; the Average Similarity of a group can change.",
+    )
+    parser.add_argument(
         "--prefilter-margin",
         type=float,
         default=None,
@@ -267,7 +279,15 @@ def main():
             args.talg,
             index_formula=args.index,
             prefilter_margin=margin,
+            bounds=not args.no_bounds,
+            skip_connected=args.skip_connected,
             stats=stats,
+        )
+        print(
+            f"structural comparisons: {stats['compared']} of {stats['pairs'] - stats['skipped']} pairs "
+            f"(bounds skipped {stats['bound_skipped']}, connected skipped {stats['connected_skipped']}); "
+            f"bounds {stats['bound_seconds']:.1f}s, TED {stats['ted_seconds']:.1f}s",
+            file=sys.stderr,
         )
         if margin is not None:
             print(
