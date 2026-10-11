@@ -84,7 +84,10 @@ def main():
     Arguments for 'group' action:
         --path, -p (str): Path to a directory containing source code files (required).
         --threshold, -t (float): Similarity threshold between 0.0 and 1.0 (required).
-        --strategy, -s (str): Grouping strategy: 'exhaustive' (default).
+        --prefilter-margin, --prefilter [MARGIN] (float): Compare tokens first and skip pairs whose
+            lexical index is under threshold - MARGIN (default margin if no value is given).
+        --skip-connected: Do not compare files already in the same group.
+        Environment: CSIM_DISABLE_BOUNDS=1 turns off the lower-bound pass (same groups, slower).
         --lang, -l (str): The programming language of the source files (default: 'python_3_13').
         --talg, -ta (str): The tree edit distance algorithm to use (default: 'apted').
         --index, -ix (str): Similarity index formula: 'legacy' (default), 'ratio' or 'metric'.
@@ -159,14 +162,8 @@ def main():
         help="Similarity threshold (0.0 to 1.0) for grouping files. Required for 'group' action.",
     )
 
-    # Strategy (only for 'group' action)
-    parser.add_argument(
-        "--strategy",
-        "-s",
-        choices=["exhaustive"],
-        default="exhaustive",
-        help="Grouping strategy: 'exhaustive' (all-pairs comparison). Default: exhaustive.",
-    )
+    # Deprecated: 'exhaustive' is the only strategy, so the option does nothing.
+    parser.add_argument("--strategy", "-s", choices=["exhaustive"], default=None, help=argparse.SUPPRESS)
 
     # Raw tree flag (only for 'tree'/'view' action)
     parser.add_argument(
@@ -177,33 +174,26 @@ def main():
     )
 
     parser.add_argument(
+        "--prefilter-margin",
         "--prefilter",
-        action="store_true",
-        help="For the 'group' action: compare the tokens of each pair first and only run the "
-        "structural comparison on the pairs whose lexical index reaches --threshold minus the "
-        f"margin ({PREFILTER_MARGIN}, or --prefilter-margin). Without --prefilter or "
-        "--prefilter-margin every pair is compared structurally. It pays off from a threshold "
-        "of about 0.6 up; below that it skips few pairs.",
-    )
-    parser.add_argument(
-        "--no-bounds",
-        action="store_true",
-        help="group only: do not skip the pairs that lower bounds of the tree edit distance "
-        "prove are below --threshold (same groups, slower).",
+        dest="prefilter_margin",
+        nargs="?",
+        type=float,
+        const=PREFILTER_MARGIN,
+        default=None,
+        metavar="MARGIN",
+        help="For the 'group' action: compare the tokens of each pair first and run the structural "
+        "comparison only on the pairs whose lexical index reaches --threshold minus MARGIN "
+        f"(0.0 to {MAX_PREFILTER_MARGIN}; {PREFILTER_MARGIN} if no value is given). A larger margin "
+        "loses fewer pairs and skips fewer. Without it every pair is compared structurally; it pays "
+        "off from a threshold of about 0.6 up.",
     )
     parser.add_argument(
         "--skip-connected",
         action="store_true",
-        help="group only: do not compare files that are already in the same group. The groups "
-        "are the same; the Average Similarity of a group can change.",
-    )
-    parser.add_argument(
-        "--prefilter-margin",
-        type=float,
-        default=None,
-        help="Turns the prefilter on with this margin: how far under --threshold the lexical "
-        f"index may be and still go on to the structural comparison (0.0 to {MAX_PREFILTER_MARGIN}). "
-        "A larger margin loses fewer pairs and skips fewer.",
+        help="For the 'group' action: do not compare files already in the same group. The groups "
+        "are the same and it is much faster at low thresholds; the Average Similarity of a group "
+        "can change.",
     )
 
     args = parser.parse_args()
@@ -244,15 +234,19 @@ def main():
             parser.error("The --threshold argument is required for 'group' action.")
         if not (0.0 <= args.threshold <= 1.0):
             parser.error("The --threshold must be a float between 0.0 and 1.0.")
+        if args.strategy is not None:
+            print("warning: --strategy is deprecated and ignored ('exhaustive' is the only one).", file=sys.stderr)
         if args.prefilter_margin is not None and not (0.0 <= args.prefilter_margin <= MAX_PREFILTER_MARGIN):
             parser.error(f"The --prefilter-margin must be a float between 0.0 and {MAX_PREFILTER_MARGIN}.")
     elif args.action == "report":
-        if args.prefilter or args.prefilter_margin is not None:
-            parser.error("The --prefilter and --prefilter-margin arguments are only valid for 'group' action.")
+        if args.prefilter_margin is not None:
+            parser.error("The --prefilter-margin argument is only valid for 'group' action.")
+        if args.skip_connected:
+            parser.error("The --skip-connected argument is only valid for 'group' action.")
         if args.threshold is not None:
             parser.error("The --threshold argument is only valid for 'group' action.")
-        if args.strategy != "exhaustive":
-            parser.error("The --strategy argument is only valid for 'group' action and must be 'exhaustive'.")
+        if args.strategy is not None:
+            parser.error("The --strategy argument is only valid for 'group' action.")
 
     try:
         file_names, file_contents = process_files(args.path, args.lang)
@@ -269,8 +263,7 @@ def main():
     elif args.action == "group":
         stats = {}
         margin = args.prefilter_margin
-        if margin is None and args.prefilter:
-            margin = PREFILTER_MARGIN
+        bounds = os.environ.get("CSIM_DISABLE_BOUNDS", "").strip().lower() not in ("1", "true", "yes")
         results = group_by_exhaustive_search(
             file_names,
             file_contents,
@@ -279,7 +272,7 @@ def main():
             args.talg,
             index_formula=args.index,
             prefilter_margin=margin,
-            bounds=not args.no_bounds,
+            bounds=bounds,
             skip_connected=args.skip_connected,
             stats=stats,
         )

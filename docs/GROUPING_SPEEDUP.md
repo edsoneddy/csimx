@@ -9,7 +9,7 @@ is a 512 MB free tier, no parallelism).
 
 | Piece | Where | Effect on the groups | Default |
 |---|---|---|---|
-| Lower bounds of the TED | `csimx/processing/lower_bounds.py` | none (exact) | on (`--no-bounds` turns it off) |
+| Lower bounds of the TED | `csimx/processing/lower_bounds.py` | none (exact) | on (`CSIM_DISABLE_BOUNDS=1`, or `bounds=False` in Python, turns it off) |
 | Skip pairs already in one group | `group_by_exhaustive_search(skip_connected=True)`, `--skip-connected` | none | off |
 | Group average = mean of a maximum spanning tree | `spanning_averages` in `csimx/utils.py` | none (the number changes) | always |
 | Estimator that models the bounds | `csimx/estimate.py` | none | `bounds=True` |
@@ -112,6 +112,6 @@ components).
 ## Reproducing
 
 Datasets: `scsc/notebooks/datasets` (A–F) and `jv-umsa-dataset` (`all_c`, `all_cpp`, `all_java`,
-`all_kotlin`, `all_py`). Run `csimx group --path DIR --lang L --threshold T [--no-bounds]
-[--skip-connected]`; stderr reports `structural comparisons: X of Y pairs (bounds skipped …,
+`all_kotlin`, `all_py`). Run `csimx group --path DIR --lang L --threshold T [--skip-connected]`
+(`CSIM_DISABLE_BOUNDS=1` for the base); stderr reports `structural comparisons: X of Y pairs (bounds skipped …,
 connected skipped …); bounds Ns, TED Ns`. Compare the groups (not the averages) with the base.

@@ -206,7 +206,6 @@ Both algorithms compute the same tree edit distance; `apted` is the default.
 # Large Java 20 assignment dataset (exhaustive search with zss algorithm)
 csimx group --path ./java_submissions \
   --threshold 0.8 \
-  --strategy exhaustive \
   --lang java_20 \
   --talg zss
 ```
@@ -271,7 +270,7 @@ python -m csimx report --path ./files
 
 ```bash
 # If you ran this and it's slow:
-csimx group --path ./1000_files --threshold 0.8 --strategy exhaustive
+csimx group --path ./1000_files --threshold 0.8
 ```
 
 ---

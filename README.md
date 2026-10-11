@@ -97,7 +97,7 @@ csimx report --path /path/to/directory --lang java_20 --talg zss --index ratio
 
 ### Action 2: `group` - Group Files by Similarity
 
-Groups files by similarity using a specified threshold and strategy.
+Groups files by similarity using a specified threshold.
 
 ```sh
 csimx group --path /path/to/directory --threshold 0.8
@@ -115,43 +115,28 @@ Group 2 (Average Similarity: 0.95):
 ./file4.py
 ```
 
-#### Strategy Options
-
-The `group` action supports two strategies for finding similar files:
-
-##### 1. **exhaustive** (Default)
-Compares every file against every other file (O(n²)). This is the most thorough approach but slower for large datasets.
-
-```sh
-csimx group --path /path/to/directory --threshold 0.8 --strategy exhaustive
-```
-
-**When to use each:**
-- **exhaustive**: Small datasets (< 100 files), when maximum precision is critical
+Every pair of files is compared (O(n²) pairs); lower bounds and `--skip-connected` avoid computing the tree edit distance of most of them (see "Skipped comparisons" below). For very large directories use the lexical prefilter.
 
 #### Group Action Options
 
 - `--threshold, -t`: Similarity threshold (0.0 to 1.0). **Required.**
-- `--strategy, -s`: Grouping strategy (default: `exhaustive`). Options: `exhaustive`
 - `--lang, -l`: Programming language (default: `python_3_13`). Options: `python_3_13`, `python_3`, `java_20`, `java_24`, `cpp_14`, `kotlin`, `c`
 - `--talg, -ta`: Tree edit distance algorithm (default: `apted`). Options: `zss`, `apted`
 - `--index, -ix`: Similarity index formula (default: `legacy`). Options: `legacy`, `ratio`, `metric`
-- `--prefilter`: Compare the tokens of each pair first and run the structural comparison only on the pairs whose lexical index reaches `--threshold` minus 0.05 (see below). Off by default.
-- `--prefilter-margin X`: Same, with margin `X` (0.0 to 0.30); it turns the prefilter on by itself.
+- `--prefilter-margin [X]` (alias `--prefilter`): Compare the tokens of each pair first and run the structural comparison only on the pairs whose lexical index reaches `--threshold` minus the margin `X` (0.0 to 0.30; 0.05 if no value is given). Off by default (see below).
 - `--skip-connected`: Do not compare files that are already in the same group. The groups are the same and it is much faster at low thresholds; only the Average Similarity can change (see below). Off by default.
-- `--no-bounds`: Turn off the lower-bound pass (same groups, slower). For measuring.
 
 **Complete example:**
 ```sh
-csimx group --path /path/to/directory --threshold 0.9 --strategy exhaustive --lang python_3_13 --talg zss
+csimx group --path /path/to/directory --threshold 0.9 --lang python_3_13 --talg zss
 ```
 
 #### Lexical prefilter (`group` only)
 
-The **structural** stage (parse tree, tree edit distance) gives the index. The **lexical** stage compares token sequences with the Myers diff (`1 - d / (len_a + len_b)`; comments and layout dropped, names, numbers and strings generalized). With `--prefilter` it runs first and the structural stage only compares pairs that are not too different in tokens, so big directories run several times faster; files in no such pair are not parsed.
+The **structural** stage (parse tree, tree edit distance) gives the index. The **lexical** stage compares token sequences with the Myers diff (`1 - d / (len_a + len_b)`; comments and layout dropped, names, numbers and strings generalized). With `--prefilter-margin` it runs first and the structural stage only compares pairs that are not too different in tokens, so big directories run several times faster; files in no such pair are not parsed.
 
 ```sh
-csimx group --path /path/to/directory --threshold 0.7 --lang python_3 --prefilter
+csimx group --path /path/to/directory --threshold 0.7 --lang python_3 --prefilter-margin
 csimx group --path /path/to/directory --threshold 0.7 --lang python_3 --prefilter-margin 0.1
 ```
 
@@ -161,7 +146,7 @@ The filter is lossy: a pair with the same structure and very different tokens (a
 
 Two exact speedups, neither changes the groups:
 
-- **Lower bounds** (always on): sizes, label counts and the edit distance of the traversal sequences prove that many pairs cannot exceed the threshold, so their tree edit distance is never computed. Wins at high thresholds.
+- **Lower bounds** (always on; `CSIM_DISABLE_BOUNDS=1` turns them off, for measuring): sizes, label counts and the edit distance of the traversal sequences prove that many pairs cannot exceed the threshold, so their tree edit distance is never computed. Wins at high thresholds.
 - **`--skip-connected`**: a pair whose files are already in one group cannot change the result. Wins at low thresholds.
 
 On 100 files per language at threshold 0.7: cpp 37.7 s → 2.8 s, java 39.2 → 8.5, c 36.6 → 0.9, kotlin 6.5 → 1.8, python 4.9 → 1.2 (single core; memory unchanged). Measurements, the average and what did not work: [docs/GROUPING_SPEEDUP.md](docs/GROUPING_SPEEDUP.md).

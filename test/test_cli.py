@@ -152,3 +152,47 @@ def test_cli_index_formula():
         check=False,
     )
     assert bad.returncode != 0, "an unknown --index value should be rejected"
+
+
+def _group(*options, env=None):
+    command = [*CSIM_EXECUTABLE, "group", "-p", "test/files/", "-t", "0.8", "-l", "python_3_13", *options]
+    return subprocess.run(command, capture_output=True, text=True, check=False, env=env)
+
+
+def test_cli_prefilter_with_and_without_margin():
+    plain = _group("--prefilter")
+    margin = _group("--prefilter-margin", "0.05")
+    short = _group("--prefilter", "0.05")
+    for result in (plain, margin, short):
+        assert result.returncode == 0, result.stderr
+        assert "prefilter (margin 0.05)" in result.stderr
+    assert plain.stdout == margin.stdout == short.stdout
+
+
+def test_cli_strategy_is_deprecated_and_ignored():
+    default = _group()
+    old = _group("-s", "exhaustive")
+    assert old.returncode == 0
+    assert "deprecated" in old.stderr
+    assert old.stdout == default.stdout
+
+
+def test_cli_skip_connected_and_no_bounds_keep_the_groups():
+    import os
+
+    def members(text):
+        return sorted(line for line in text.splitlines() if not line.startswith(("Group", "Threshold", "Total")))
+
+    reference = _group()
+    skipped = _group("--skip-connected")
+    unbounded = _group(env={**os.environ, "CSIM_DISABLE_BOUNDS": "1"})
+    assert skipped.returncode == unbounded.returncode == 0
+    assert members(skipped.stdout) == members(reference.stdout)
+    assert unbounded.stdout == reference.stdout
+    assert "bounds skipped 0" in unbounded.stderr
+
+
+def test_cli_group_only_options_are_rejected_by_report():
+    for option in (["--skip-connected"], ["--prefilter-margin", "0.05"], ["-s", "exhaustive"]):
+        command = [*CSIM_EXECUTABLE, "report", "-p", "test/files/", "-l", "python_3_13", *option]
+        assert subprocess.run(command, capture_output=True, text=True, check=False).returncode != 0
