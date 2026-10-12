@@ -168,16 +168,26 @@ def DistanceCutoff(mass_a, mass_b, threshold, index_formula, index_function):
     return hi
 
 
-def CanReachThreshold(a, b, threshold, index_formula, index_function, table):
-    """False only if the bounds prove the pair's index cannot be above `threshold`."""
+def ReachableDistanceBound(a, b, threshold, index_formula, index_function, table):
+    """None if the bounds prove the pair's index cannot be above `threshold`, else the larger of
+    the two sequence bounds (a lower bound of the distance, close to it: see estimate.py)."""
     cutoff = DistanceCutoff(a.mass, b.mass, threshold, index_formula, index_function)
     if cutoff <= 0.0:
-        return False
+        return None
     if SizeLowerBound(a, b) >= cutoff:
-        return False
+        return None
     if LabelLowerBound(a, b) >= cutoff:
-        return False
-    if SequenceLowerBound(a, b, cutoff, table) >= cutoff:
-        return False
-    return SequenceLowerBound(a, b, cutoff, table, postorder=True) < cutoff
+        return None
+    pre = SequenceLowerBound(a, b, cutoff, table)
+    if pre >= cutoff:
+        return None
+    post = SequenceLowerBound(a, b, cutoff, table, postorder=True)
+    if post >= cutoff:
+        return None
+    return max(pre, post)
+
+
+def CanReachThreshold(a, b, threshold, index_formula, index_function, table):
+    """False only if the bounds prove the pair's index cannot be above `threshold`."""
+    return ReachableDistanceBound(a, b, threshold, index_formula, index_function, table) is not None
 

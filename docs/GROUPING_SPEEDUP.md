@@ -87,8 +87,29 @@ parsing (java native ~31 ms/file), the bound DP (~0.1–0.2 ms/pair) and a few T
 
 ### Estimator
 
-`estimate_group` before: 10–40x over (it priced every pair); now -25 % / +20 % of the real time
-(bounds are run for real, they are cheap).
+`estimate_group` before the bounds: 10–40x over (it priced every pair). With the bounds
+(`bounds=True`): -25 % .. +20 % of the time of `group` without `skip_connected`, checked also on
+108–223 files (14 of 15 cases within -17 % .. +9 %; python +26 % / +30 %, safe side).
+
+A job that runs with `--skip-connected` is far cheaper than that estimate (2–25x at low
+thresholds), and with the speed of Render (`speed_factor` ~21) it was rejected as `too_slow`
+although it fits. `estimate_group(..., skip_connected=True)` models it:
+
+1. The distance of a pair is unknown without computing it, but the sequence bound is close to it:
+   TED / max(SED pre, SED post) has median 1.0 (python) to 1.2 (cpp) and 90th percentile 1.2–1.45
+   on 10 sets of 100–223 files.
+2. The pairs are walked in the order of `group` with a union-find; a pair counts as joining when
+   the index of `ratio * bound` exceeds the threshold (`ratio` 1.2, python 1.1), and the pairs it
+   connects are not charged.
+3. Variants tried on the real outcomes of 10 sets x 3 thresholds (cost vs the real run with skip):
+   charging every survivor 1.1–43x; "join if the best possible index passes" 0.2–1.0x (optimistic,
+   bad); `ratio` 1.1 0.3–3x; **`ratio` 1.2 0.97–1.9x in 24 of 30 cases**, up to 3x at 0.3.
+
+End to end (`estimate_group(skip_connected=True)` vs `group --skip-connected`, 36 set x threshold
+cases, one core): error -12 % .. +30 % in 31 cases; the other five are three at threshold 0.3 (cpp_14 +89 %
+and +121 %, python +142 %: pairs that the guess does not join but really do, safe side), python
++39 % at 0.7 and one -49 % that is the one-time library load of the first run in the process. The no-skip model was 2–25x over on the
+same cases (e.g. c, 200 files, 0.3: 147 s vs 5.7 s real, now 5.8 s).
 
 ## Tried and discarded (do not repeat)
 

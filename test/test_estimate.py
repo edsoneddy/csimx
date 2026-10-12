@@ -91,6 +91,24 @@ def test_estimate_with_bounds_never_exceeds_the_upper_bound(lang):
     names, contents = inputs(lang)
     est = estimate_group(names, contents, lang)
     assert est["structural_pairs"] + est["bound_skipped"] == est["pairs"] - est["skipped"]
+    assert est["connected_skipped"] == 0
     assert est["estimated_seconds"] <= est["upper_bound_seconds"] + est["bound_seconds"] + 1e-6
     off = estimate_group(names, contents, lang, bounds=False)
     assert off["structural_pairs"] == off["pairs"] and off["bound_skipped"] == 0
+
+
+@pytest.mark.parametrize("lang", LANGS)
+@pytest.mark.parametrize("threshold", [0.3, 0.7])
+def test_estimate_models_skip_connected(lang, threshold):
+    names, contents = inputs(lang)
+    plain = estimate_group(names, contents, lang, threshold=threshold)
+    skip = estimate_group(names, contents, lang, threshold=threshold, skip_connected=True)
+    accounted = skip["structural_pairs"] + skip["bound_skipped"] + skip["connected_skipped"]
+    assert accounted == skip["pairs"] - skip["skipped"]
+    assert skip["structural_pairs"] <= plain["structural_pairs"]
+    assert skip["upper_bound_seconds"] == plain["upper_bound_seconds"] or abs(
+        skip["upper_bound_seconds"] - plain["upper_bound_seconds"]
+    ) < 0.5
+    # without the bounds there is no distance to guess from: the option does nothing
+    off = estimate_group(names, contents, lang, bounds=False, skip_connected=True)
+    assert off["connected_skipped"] == 0 and off["structural_pairs"] == off["pairs"]

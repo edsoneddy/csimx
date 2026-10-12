@@ -370,7 +370,7 @@ est = estimate_group(file_names, file_contents, "java_24", threshold=0.7,
 print(est["estimated_seconds"], est["range_seconds"], est["structural_pairs"], est["pairs"])
 ```
 
-The estimate runs the lower-bound pass of `group` (`bounds=True`, the default), so it prices only the pairs that reach the tree edit distance (`bound_skipped` counts the others); `group`'s `skip_connected` is not modelled and only makes the run faster. With a prefilter margin, `exact_prefilter=False` skips the lexical pass and returns the upper bound. On 100 files per language the estimate was within -25% to +20% of the time measured with the bounds (before the bounds: -1% to +13%); other machines and loaded CPUs will be worse. `group_by_exhaustive_search` takes `progress=callable(phase, done, total)` (phases `parse`, `lexical`, `structural`).
+The estimate runs the lower-bound pass of `group` (`bounds=True`, the default), so it prices only the pairs that reach the tree edit distance (`bound_skipped` counts the others). With `skip_connected=True` it also models the pairs `group(skip_connected=True)` does not compare (from the sequence bounds, not from real distances): -12% to +30% of the measured time in 31 of 36 cases, up to 2.4x over at low thresholds; without it the estimate of a skip run is 2-25x over. With a prefilter margin, `exact_prefilter=False` skips the lexical pass and returns the upper bound. On 100 files per language the estimate was within -25% to +20% of the time measured with the bounds (before the bounds: -1% to +13%); other machines and loaded CPUs will be worse. `group_by_exhaustive_search` takes `progress=callable(phase, done, total)` (phases `parse`, `lexical`, `structural`).
 
 Or use the legacy Compare class for simple pairwise comparisons:
 

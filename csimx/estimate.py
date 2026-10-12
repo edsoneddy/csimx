@@ -95,6 +95,12 @@ def pair_cost(nodes_a, nodes_b, lang):
     return SECONDS_PER_UNIT[lang] * (nodes_a * nodes_b) ** EXPONENT
 
 
+#: tree edit distance / sequence lower bound used to guess which compared pairs join a group
+#: (measured: median 1.0-1.2, python 1.0); see docs/GROUPING_SPEEDUP.md
+DISTANCE_RATIO = {"python_3": 1.1, "python_3_13": 1.1}
+DISTANCE_RATIO_DEFAULT = 1.2
+
+
 def estimate_group(
     file_names,
     file_contents,
@@ -105,6 +111,7 @@ def estimate_group(
     exact_prefilter=True,
     bounds=True,
     index_formula=None,
+    skip_connected=False,
 ):
     """Estimate the time of `group_by_exhaustive_search` without running it.
 
@@ -115,11 +122,16 @@ def estimate_group(
     With `bounds` (what `group` does by default) it also runs the lower-bound pass of `group`
     (processing.lower_bounds) on the parsed trees, which is cheap, and charges the structural cost
     only to the pairs that survive it; `index_formula` is the one of the index (default: legacy).
-    `group`'s `skip_connected` is not modelled: it only makes the run faster.
+    With `skip_connected` (what the caller will pass to `group`; needs `bounds`) the pairs are
+    walked in the order of `group` with a union-find, and a pair counts as "equal enough to join"
+    when the index of `DISTANCE_RATIO * its sequence bound` exceeds the threshold, so the pairs it
+    connects are not charged. The real distance is not known without computing it; the sequence
+    bound is within 1.0-1.2x of it on every language, and a pair that fails this test is charged
+    but not joined. Validated against real runs in docs/GROUPING_SPEEDUP.md.
 
     Returns a dict: files, pairs, structural_pairs, skipped, bound_skipped, nodes {total, mean,
     median, max}, parse_seconds, lexical_seconds, bound_seconds, prefilter_evaluated,
-    estimated_seconds, upper_bound_seconds (cost if neither the prefilter nor the bounds skipped
+    connected_skipped, estimated_seconds, upper_bound_seconds (cost if neither the prefilter nor the bounds skipped
     anything), range_seconds [low, high], speed_factor.
     """
     from .processing.distance_metrics import DEFAULT_INDEX_FORMULA
@@ -166,23 +178,36 @@ def estimate_group(
         lexical_seconds = time.perf_counter() - t1
 
     pairs = list(pairs)
-    unbounded_pairs = pairs
     bound_seconds = 0.0
     bound_skipped = 0
+    connected_skipped = 0
     if bounds:
+        from .DataStructures import UFDS
         from .processing.distance_metrics import SimilarityIndex
-        from .processing.lower_bounds import CanReachThreshold, LabelTable, TreeProfile
+        from .processing.lower_bounds import LabelTable, ReachableDistanceBound, TreeProfile
 
         t2 = time.perf_counter()
         table = LabelTable()
         profiles = [TreeProfile(tree, mass, table) for tree, mass in processed]
-        reachable = [
-            (i, j)
-            for i, j in pairs
-            if CanReachThreshold(profiles[i], profiles[j], threshold, index_formula, SimilarityIndex, table)
-        ]
+        grouper = UFDS(n) if skip_connected else None
+        ratio = DISTANCE_RATIO.get(lang, DISTANCE_RATIO_DEFAULT)
+        reachable = []
+        for i, j in pairs:
+            if grouper is not None and grouper.is_same_set(i, j):
+                connected_skipped += 1
+                continue
+            lower = ReachableDistanceBound(
+                profiles[i], profiles[j], threshold, index_formula, SimilarityIndex, table
+            )
+            if lower is None:
+                bound_skipped += 1
+                continue
+            reachable.append((i, j))
+            if grouper is not None and (
+                SimilarityIndex(ratio * lower, profiles[i].mass, profiles[j].mass, index_formula) > threshold
+            ):
+                grouper.union(i, j)
         bound_seconds = time.perf_counter() - t2
-        bound_skipped = len(pairs) - len(reachable)
         pairs = reachable
     structural = sum(pair_cost(nodes[i], nodes[j], lang) for i, j in pairs) * speed_factor
     fixed = parse_seconds + lexical_seconds + bound_seconds  # measured on this machine, not scaled
@@ -198,6 +223,7 @@ def estimate_group(
         "structural_pairs": len(pairs),
         "skipped": skipped,
         "bound_skipped": bound_skipped,
+        "connected_skipped": connected_skipped,
         "nodes": {
             "total": sum(nodes),
             "mean": round(statistics.mean(nodes), 1) if nodes else 0,

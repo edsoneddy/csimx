@@ -6,6 +6,14 @@ so they summarise each line rather than list every change.
 Note: "dataset F" in the 3.4.2 to 4.0.1 entries is the *first* F (Faidhi ladders, since retired);
 the current F of the scsc repository is a different dataset, see `docs/pruning_fidelity.md`.
 
+## [0.4.1] - csimx
+
+* `estimate_group(..., skip_connected=True)` models `group(skip_connected=True)`: it walks the pairs
+  with a union-find and treats a pair as joining when `1.2 x` its sequence lower bound (python:
+  `1.1 x`) is under the threshold. New key `connected_skipped`. On 36 set x threshold cases it is
+  within -12 %..+30 % of the real time in 31 (the no-skip model was 2-25x over at low thresholds).
+  Default `False`: the estimate of 0.4.0 does not change.
+
 ## [0.4.0] - csimx
 
 `group` computes far fewer tree edit distances; the groups are identical to 0.3.0 (checked on 18
